@@ -1,0 +1,19 @@
+project(binary_search)
+aux_source_directory(. SRC_LIST)
+add_executable(${PROJECT_NAME}
+	${SRC_LIST}
+)
+
+target_include_directories(${PROJECT_NAME}
+	SYSTEM PUBLIC
+    ${Boost_INCLUDE_DIRS}
+    ${Vc_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    ${Boost_LIBRARIES}
+    ${Vc_LIBRARIES}
+)
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
