@@ -79,6 +79,32 @@ private:
     const container_type& ref_;
 };
 
+template< class Cont_T, typename TAG_T >
+struct VcAlgoPointerLowerBound
+{
+	using container_type = Cont_T;
+    using value_type     = typename container_type::value_type;
+    using const_iterator = typename container_type::const_iterator;
+
+    explicit VcAlgoPointerLowerBound( const container_type& ref ) : ref_( ref ){}
+
+    void build_index(){}
+
+    const_iterator find( const value_type& key )
+    {
+        auto first = VcAlgo::lower_bound< const value_type*,
+                                  value_type,
+                                  TAG_T>( ref_.data(), ref_.data()+ref_.size(), key );
+
+        auto it = ref_.begin();
+        std::advance( it, first - ref_.data() );
+
+        return (it!=ref_.end() && !(key<*it)) ? it : ref_.end();
+    }
+private:
+    const container_type& ref_;
+};
+
 void do_nothing( int32_t );
 
 template< class Cont_T, template < typename... > class Index_T, typename TAG_T >
@@ -130,6 +156,11 @@ uint64_t bench( const std::string& name, size_t size, size_t loop )
     return timer.elapsed().wall;
 }
 
+float percent( uint64_t base, uint64_t compare )
+{
+    return 100.f * (static_cast<float>(base) / static_cast<float>(compare) -1.f);
+}
+
 int main(int argc, char* /*argv*/[])
 {
     constexpr size_t runSize = 0x00400000;
@@ -145,19 +176,28 @@ int main(int argc, char* /*argv*/[])
     }
     while( 1 )
     {
-        uint64_t base = bench< avector< int32_t >, StdLowerBound, void >( "lower_bound ...........", runSize, loop );
-        uint64_t sse = bench< avector< int32_t >, VcAlgoLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE", runSize, loop );
-        uint64_t avx = bench< avector< int32_t >, VcAlgoLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX", runSize, loop );
+        uint64_t base = bench< avector< int32_t >, StdLowerBound, void >( "lower_bound ............", runSize, loop );
+        uint64_t sse = bench< avector< int32_t >, VcAlgoLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, loop );
+        uint64_t avx = bench< avector< int32_t >, VcAlgoLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, loop );
+
+        uint64_t sse2= bench< avector< int32_t >, VcAlgoPointerLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE2", runSize, loop );
+        uint64_t avx2= bench< avector< int32_t >, VcAlgoPointerLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX2", runSize, loop );
 
 
         if( g_verbose )
         {
             std::cout
                       << std::endl << "VcAlgo::lower_bound Speed up SSE.: " << std::fixed << std::setprecision(2)
-                      << static_cast<float>(base)/static_cast<float>(sse) << "x"
+                      << percent( base, sse ) << "%"
 
                       << std::endl << "VcAlgo::lower_bound Speed up AVX.: " << std::fixed << std::setprecision(2)
-                      << static_cast<float>(base)/static_cast<float>(avx) << "x"
+                      << percent( base, avx ) << "%"
+
+                      << std::endl << "VcAlgo::lower_bound Speed up SSE2: " << std::fixed << std::setprecision(2)
+                      << percent( base, sse2 ) << "%"
+
+                      << std::endl << "VcAlgo::lower_bound Speed up AVX2: " << std::fixed << std::setprecision(2)
+                      << percent( base, avx2 ) << "%"
 
                       << std::endl << std::endl;
         }
