@@ -96,51 +96,47 @@ public:
     }
 };
 
-
-template <class ForwardIterator, class T, typename TAG_T >
-ForwardIterator simd_lower_bound( ForwardIterator beg, ForwardIterator end,
-                                  const Vc::Vector< T, TAG_T > key )
+template <class ForwardIterator, class T, typename TAG_T,
+          typename std::enable_if<
+                std::is_fundamental< typename std::iterator_traits< ForwardIterator >::value_type >
+                   ::value >
+             ::type* = nullptr >
+ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T& key )
 {
     using iterator_type = ForwardIterator;
     using value_type = typename std::iterator_traits< iterator_type >::value_type;
 
     using simd_type = Vc::Vector< value_type, TAG_T >;
 
-    constexpr auto array_size = Vc::Vector< value_type, TAG_T >::size();
+    constexpr size_t array_size = simd_type::size();
 
-    size_t size = std::distance( beg, end );
-    if( size < 0x20 )
-    {
-        // Standard lower_bound on small sizes
-        return std::lower_bound( beg, end, key[0] );
-    }
-
+    auto beg = ibeg;
+    auto end = iend;
+    simd_type skey( key );
     simd_filler<ForwardIterator, TAG_T> filler;
 
-    size_t step = size / (array_size + 1);
-    simd_type cmp = filler.get_compare( step, beg );
+    while( 1 )
+    {
+        size_t size = std::distance( beg, end );
+        if( size < 0x20 )
+        {
+            // Standard lower_bound on small sizes
+            return std::lower_bound( beg, end, key );
+        }
 
-    // N-Way search
-    size_t i = VcGreaterThan( cmp, key );
+        size_t step = size / (array_size + 1);
+        simd_type cmp = filler.get_compare( step, beg );
 
-    // Recalculate iterators
-    auto it = filler[ i ];
-    auto itEnd = ( i == array_size ) ? end : filler[ i + 1 ];
+        // N-Way search
+        size_t i = VcGreaterThan( cmp, skey );
 
-    return simd_lower_bound< ForwardIterator, T, TAG_T >( it, itEnd, key );
+        // Recalculate iterators
+        beg = filler[ i ];
+        end = ( i == array_size ) ? end : filler[ i + 1 ];
+    }
 }
 
-template <class ForwardIterator, class T, typename TAG_T,
-          typename std::enable_if< 
-                std::is_fundamental< typename std::iterator_traits< ForwardIterator >::value_type >
-                   ::value >
-             ::type* = nullptr >
-ForwardIterator lower_bound( ForwardIterator beg, ForwardIterator end, const T& key )
-{
-    return simd_lower_bound< ForwardIterator, T, TAG_T >( beg, end, Vc::Vector< T, TAG_T >( key ) );
-}
-
-} // namespace VcAlgo::detail
+} // namespace VcAlgo::details
 
 using details::lower_bound;
 
