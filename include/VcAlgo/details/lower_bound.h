@@ -48,50 +48,34 @@ class simd_filler
 
     std::array<iterator_type, array_size +1> iterators;
 
-    void fill_iterators( size_t step, ForwardIterator beg )
-    {
-        auto it = beg;
-        iterators[ 0 ] = it;
-        for( size_t i = 0; i < array_size; ++i )
-        {
-            std::advance( it, step );
-            Vc::prefetchClose( reinterpret_cast<const void*>( &(*it) ) );
-            iterators[ i+1 ] = it;
-        }
-    }
-
 public:
     inline iterator_type operator[](const size_t idx)
     {
         return iterators[ idx ];
     }
 
-    template< typename IT,
-              typename std::enable_if< !std::is_pointer<IT>::value >::type* = nullptr >
-    simd_type get_compare( size_t step, IT beg )
+    inline void prefetch( size_t step, ForwardIterator beg )
     {
-        fill_iterators( step, beg );
+        auto it = beg;
+        for( size_t i = 0; i < array_size; ++i )
+        {
+            std::advance( it, step );
+            Vc::prefetchClose( reinterpret_cast<const void*>( &(*it) ) );
+        }
+    }
 
-        // Create SIMD search key
+    inline simd_type get_compare( size_t step, ForwardIterator beg )
+    {
+        Vc::prefetchClose( reinterpret_cast<const void*>( &iterators ) );
+        auto it = beg;
+        iterators[ 0 ] = it;
         simd_type cmp;
         for( size_t i = 0; i < array_size; ++i )
         {
-            cmp[ i ] = *(iterators[ i+1 ]);
+            std::advance( it, step );
+            cmp[ i ] = *it;
+            iterators[ i+1 ] = it;
         }
-        return cmp;
-    }
-
-    template< typename IT,
-              typename std::enable_if< std::is_pointer<IT>::value >::type* = nullptr >
-    simd_type get_compare( size_t step, IT beg )
-    {
-        fill_iterators( step, beg );
-
-        // Create Indexes
-        simd_type index = (simd_type::IndexesFromZero() + 1) * simd_type( step );
-
-        simd_type cmp;
-        cmp.gather( beg, index );
         return cmp;
     }
 };
@@ -115,24 +99,41 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     simd_type skey( key );
     simd_filler<ForwardIterator, TAG_T> filler;
 
+    size_t size = std::distance( beg, end );
+    if( size < 0x20, 0 )
+    {
+        // Standard lower_bound on small sizes
+        return std::lower_bound( beg, end, key );
+    }
+
+    size_t step = size / (array_size + 1);
+    filler.prefetch( step, beg );
+
     while( 1 )
     {
-        size_t size = std::distance( beg, end );
-        if( size < 0x20 )
-        {
-            // Standard lower_bound on small sizes
-            return std::lower_bound( beg, end, key );
-        }
-
-        size_t step = size / (array_size + 1);
         simd_type cmp = filler.get_compare( step, beg );
+
+        step /= (array_size + 1);
 
         // N-Way search
         size_t i = VcGreaterThan( cmp, skey );
 
         // Recalculate iterators
         beg = filler[ i ];
-        end = ( i == array_size ) ? end : filler[ i + 1 ];
+        filler.prefetch( step, beg );
+        if( __builtin_expect( i != array_size, 1 ) )
+        {
+            end = filler[ i + 1 ];
+        }
+        else
+        {
+            step = std::distance( beg, end ) / (array_size + 1);
+        }
+        if( __builtin_expect( step < 0x20, 0 ) )
+        {
+            // Standard lower_bound on small sizes
+            return std::lower_bound( beg, end, key );
+        }
     }
 }
 
