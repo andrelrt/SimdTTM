@@ -82,7 +82,7 @@ public:
 
 template <class ForwardIterator, class T, typename TAG_T,
           typename std::enable_if<
-                std::is_fundamental< typename std::iterator_traits< ForwardIterator >::value_type >
+                std::is_arithmetic< typename std::iterator_traits< ForwardIterator >::value_type >
                    ::value >
              ::type* = nullptr >
 ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T& key )
