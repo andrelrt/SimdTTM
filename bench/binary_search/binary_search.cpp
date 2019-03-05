@@ -182,6 +182,17 @@ class benchLoop
 public:
     void operator()( bool verbose, size_t runSize, size_t inloop, size_t outloop )
     {
+        benchLoop<NUM_T>()( verbose, runSize, inloop, outloop );
+        benchLoop<NEXT_T...>()( verbose, runSize, inloop, outloop );
+    }
+};
+
+template< typename NUM_T >
+class benchLoop< NUM_T >
+{
+public:
+    void operator()( bool verbose, size_t runSize, size_t inloop, size_t outloop )
+    {
         if( verbose )
         {
             std::cout
@@ -191,7 +202,9 @@ public:
         }
         else
         {
-            std::cout << "std::lower_bound,VcAlgo::lower_bound SSE,VcAlgo::lower_bound AVX" << std::endl << std::endl << std::endl << std::endl;
+            std::cout
+                << "size," << runSize << ",type," << getName<NUM_T>() << std::endl
+                << "std::lower_bound,VcAlgo::lower_bound SSE,VcAlgo::lower_bound AVX" << std::endl;
         }
         for( size_t i = 0; i < outloop; ++i )
         {
@@ -200,11 +213,11 @@ public:
             uint64_t sse = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop );
             uint64_t avx = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop );
 
-            uint64_t sse2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop );
-            uint64_t avx2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop );
-
             if( g_verbose )
             {
+                uint64_t sse2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop );
+                uint64_t avx2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop );
+
                 std::cout
                     << std::endl << "VcAlgo::lower_bound, " << getName<NUM_T>() << " Speed up SSE.: "
                     << std::fixed << std::setprecision(2) << percent( base, sse ) << "%"
@@ -228,25 +241,17 @@ public:
                     << "," << avx
                     << std::endl;
             }
-            if( sizeof...(NEXT_T) > 0 )
-            {
-                benchLoop<NEXT_T...>()( verbose, runSize, inloop, outloop );
-            }
         }
     }
-};
-template<>
-class benchLoop<void>
-{
-public:
-    void operator()( bool verbose, size_t runSize, size_t inloop, size_t outloop ){}
 };
 
 int main(int argc, char* /*argv*/[])
 {
     constexpr size_t runSize = 0x00400000;
-    constexpr size_t loop = 1;
+    constexpr size_t loop = 5;
+    bool verbose = (argc == 1);
 
-    benchLoop< int16_t, int32_t, float, double, void >()( argc == 1, runSize, loop, 1 );
+    benchLoop< int16_t, int32_t, float, double >()( verbose, runSize, loop,
+                                                    verbose? 1: 50 );
     return 0;
 }
