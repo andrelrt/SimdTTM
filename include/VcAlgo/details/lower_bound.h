@@ -111,7 +111,7 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
         step /= (array_size + 1);
 
         // N-Way search
-        size_t i = VcGreaterThan( cmp, skey );
+        size_t i = ( cmp > skey ).firstOne();
 
         // Recalculate iterators
         beg = filler[ i ];
