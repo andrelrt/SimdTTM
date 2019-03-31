@@ -31,8 +31,6 @@
 #include <Vc/Vc>
 #include <VcAlgo/algorithm>
 
-bool g_verbose = true;
-
 template< typename Val_T >
 using avector = std::vector< Val_T, Vc::Allocator<Val_T> >;
 
@@ -122,7 +120,7 @@ GET_NAME(float)
 GET_NAME(double)
 
 template< class Cont_T, template < typename... > class Index_T, typename TAG_T >
-uint64_t bench( const std::string& name, size_t size, size_t loop )
+uint64_t bench( const std::string& name, size_t size, size_t loop, bool verbose )
 {
 	using container_type = Cont_T;
     using index_type = Index_T< container_type, TAG_T >;
@@ -165,7 +163,7 @@ uint64_t bench( const std::string& name, size_t size, size_t loop )
         }
     }
     timer.stop();
-    if( g_verbose )
+    if( verbose )
         std::cout << "Find all " << getName<value_type>() << " " << name << ": " << timer.format();
 
     return timer.elapsed().wall;
@@ -208,15 +206,15 @@ public:
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-            uint64_t base = bench< avector< NUM_T >, StdLowerBound, void >( "std::lower_bound .......", runSize, inloop );
+            uint64_t base = bench< avector< NUM_T >, StdLowerBound, void >( "std::lower_bound .......", runSize, inloop, verbose );
 
-            uint64_t sse = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop );
-            uint64_t avx = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop );
+            uint64_t sse = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop, verbose );
+            uint64_t avx = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop, verbose );
 
-            if( g_verbose )
+            if( verbose )
             {
-                uint64_t sse2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop );
-                uint64_t avx2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop );
+                uint64_t sse2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop, verbose );
+                uint64_t avx2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop, verbose );
 
                 std::cout
                     << std::endl << "VcAlgo::lower_bound, " << getName<NUM_T>() << " Speed up SSE.: "
@@ -252,6 +250,6 @@ int main(int argc, char* /*argv*/[])
     bool verbose = (argc == 1);
 
     benchLoop< int16_t, int32_t, float, double >()( verbose, runSize, loop,
-                                                    verbose? 1: 50 );
+                                                    verbose? 1: 5 );
     return 0;
 }
