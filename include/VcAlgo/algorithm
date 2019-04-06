@@ -22,4 +22,4 @@
 
 #pragma once
 
-#include <VcAlgo/details/lower_bound.h>
+#include <VcAlgo/detail/lower_bound.h>

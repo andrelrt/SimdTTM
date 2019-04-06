@@ -24,4 +24,4 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_testing()
 
 add_subdirectory(bench)
-#add_subdirectory(test)
+add_subdirectory(test)

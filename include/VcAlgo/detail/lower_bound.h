@@ -31,7 +31,7 @@
 #include "operators.h"
 
 namespace VcAlgo {
-namespace details {
+namespace detail {
 
 template<class ForwardIterator, typename TAG_T>
 class simd_filler
@@ -132,9 +132,9 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     }
 }
 
-} // namespace VcAlgo::details
+} // namespace VcAlgo::detail
 
-using details::lower_bound;
+using detail::lower_bound;
 
 } // namespace VcAlgo
 
