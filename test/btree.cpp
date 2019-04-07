@@ -58,41 +58,41 @@ TEST(BtreeRow, EmptyTest)
     up = row.insert( 0, 256 + 1 ); printRow( row, up );
     up = row.insert( 0, 512 + 1 ); printRow( row, up );
     up = row.insert( 1, 768 + 1 ); printRow( row, up );
-    up = row.insert( 3, 1024 + 1 ); printRow( row, up );
+    up = row.insert( 2, 1024 + 1 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 3 ); printRow( row, up );
-    up = row.insert( 2, 512 + 3 ); printRow( row, up );
-    up = row.insert( 1, 768 + 3 ); printRow( row, up );
+    up = row.insert( 1, 512 + 3 ); printRow( row, up );
+    up = row.insert( 2, 768 + 3 ); printRow( row, up );
     up = row.insert( 3, 1024 + 3 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 5 ); printRow( row, up );
-    up = row.insert( 2, 512 + 5 ); printRow( row, up );
-    up = row.insert( 1, 768 + 5 ); printRow( row, up );
+    up = row.insert( 1, 512 + 5 ); printRow( row, up );
+    up = row.insert( 2, 768 + 5 ); printRow( row, up );
     up = row.insert( 3, 1024 + 5 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 7 ); printRow( row, up );
-    up = row.insert( 2, 512 + 7 ); printRow( row, up );
-    up = row.insert( 1, 768 + 7 ); printRow( row, up );
+    up = row.insert( 1, 512 + 7 ); printRow( row, up );
+    up = row.insert( 2, 768 + 7 ); printRow( row, up );
     up = row.insert( 3, 1024 + 7 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 9 ); printRow( row, up );
-    up = row.insert( 2, 512 + 9 ); printRow( row, up );
-    up = row.insert( 1, 768 + 9 ); printRow( row, up );
+    up = row.insert( 1, 512 + 9 ); printRow( row, up );
+    up = row.insert( 2, 768 + 9 ); printRow( row, up );
     up = row.insert( 3, 1024 + 9 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 11 ); printRow( row, up );
-    up = row.insert( 2, 512 + 11 ); printRow( row, up );
-    up = row.insert( 1, 768 + 11 ); printRow( row, up );
+    up = row.insert( 1, 512 + 11 ); printRow( row, up );
+    up = row.insert( 2, 768 + 11 ); printRow( row, up );
     up = row.insert( 3, 1024 + 11 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 13 ); printRow( row, up );
-    up = row.insert( 2, 512 + 13 ); printRow( row, up );
-    up = row.insert( 1, 768 + 13 ); printRow( row, up );
+    up = row.insert( 1, 512 + 13 ); printRow( row, up );
+    up = row.insert( 2, 768 + 13 ); printRow( row, up );
     up = row.insert( 3, 1024 + 13 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 15 ); printRow( row, up );
-    up = row.insert( 2, 512 + 15 ); printRow( row, up );
-    up = row.insert( 1, 768 + 15 ); printRow( row, up );
+    up = row.insert( 1, 512 + 15 ); printRow( row, up );
+    up = row.insert( 2, 768 + 15 ); printRow( row, up );
     up = row.insert( 3, 1024 + 15 ); printRow( row, up );
 }
 

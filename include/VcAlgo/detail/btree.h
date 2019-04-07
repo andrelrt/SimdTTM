@@ -64,14 +64,10 @@ public:
         add_node();
     }
 
-    std::pair<bool, value_type> insert( size_t node, value_type val )
+    std::pair<bool, value_type> insert( size_t extnode, value_type val )
     {
-        if( node >= row_.size() )
-        {
-            std::stringstream ss;
-            ss << "Invalid node number " << node << " (max " << row_.size() -1 << ")";
-            throw std::out_of_range(ss.str());
-        }
+        range_check( extnode );
+        size_t node = translateNode( extnode );
 
         if( node_sizes_[node] < node_size )
         {
@@ -128,6 +124,14 @@ public:
         return std::make_pair( true, ret );
     }
 
+
+    size_t upper_bound( size_t extnode, value_type val )
+    {
+        range_check( extnode );
+        size_t node = translateNode( extnode );
+        return upper_bound_node( row_[node], val );
+    }
+
 private:
     row_type row_;
     std::vector<uint16_t> node_map_;
@@ -138,6 +142,28 @@ private:
 
     static constexpr uint16_t map_end = std::numeric_limits< uint16_t >::max();
     static constexpr value_type empty_value = std::numeric_limits< value_type >::max();
+
+    size_t translateNode( size_t extnode )
+    {
+        size_t ret = 0;
+        size_t cur = extnode;
+        while( cur != 0 )
+        {
+            ret = node_map_[ ret ];
+            --cur;
+        }
+        return ret;
+    }
+
+    void range_check( size_t node )
+    {
+        if( node >= row_.size() )
+        {
+            std::stringstream ss;
+            ss << "Invalid node number " << node << " (max " << row_.size() -1 << ")";
+            throw std::out_of_range(ss.str());
+        }
+    }
 
     size_t add_node()
     {
