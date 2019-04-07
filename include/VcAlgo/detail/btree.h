@@ -31,6 +31,7 @@
 #include <functional>
 #include <type_traits>
 #include <iostream>
+#include <sstream>
 #include <Vc/Vc>
 
 #include "operators.h"
@@ -39,7 +40,8 @@ namespace VcAlgo {
 namespace detail {
 
 template< typename Type_T, // Value type
-          template <class...> class Alloc_T = std::allocator,
+          size_t NODE_SIZE = 256,
+          template <class...> class Alloc_T = Vc::Allocator,
           typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
 class btree_row
 {
@@ -47,7 +49,8 @@ public:
     using value_type = Type_T;
     using simd_type = Vc::Vector< value_type >;
 private:
-    static constexpr size_t node_size = 256 / sizeof( Type_T );
+    static constexpr size_t node_size = NODE_SIZE;
+    static constexpr size_t byte_size = node_size * sizeof(value_type);
     static constexpr size_t simd_size = node_size / simd_type::size();
     static constexpr size_t node_middle = node_size / 2;
     static constexpr size_t simd_size_mask = simd_type::size() -1;
@@ -63,21 +66,25 @@ public:
 
     std::pair<bool, value_type> insert( size_t node, value_type val )
     {
-        if( node > row_.size() )
-            throw std::out_of_range("Invalid node");
+        if( node >= row_.size() )
+        {
+            std::stringstream ss;
+            ss << "Invalid node number " << node << " (max " << row_.size() -1 << ")";
+            throw std::out_of_range(ss.str());
+        }
 
         if( node_sizes_[node] < node_size )
         {
             // Insert an item on a node
             int32_t pos = upper_bound_node( row_[node], val );
+            value_type* ptr = const_cast<value_type*>(
+                              reinterpret_cast<const value_type*>( row_[node].data() ));
             if( pos < node_sizes_[node] )
             {
-                value_type* ptr = const_cast<value_type*>(
-                                  reinterpret_cast<const value_type*>( row_[node].data() ));
                 std::copy_backward( ptr + pos, ptr + node_sizes_[node], ptr + node_sizes_[node] +1 );
             }
             // TODO check: pos is value_type based, not simd_type based
-            row_[node][index2offset(pos)] = val;
+            ptr[pos] = val;
             ++node_sizes_[node];
             return std::make_pair( false, value_type(0) );
         }
@@ -97,23 +104,25 @@ public:
         {
             // TODO check: pos is value_type based, not simd_type based
             ret = ptr[node_middle];
-            std::copy(ptr + node_middle, ptr + index2offset(pos) -1, nextptr );
-            std::copy(ptr + index2offset(pos), ptr + node_size, nextptr + index2offset(pos) );
-            nextptr[ index2offset(pos) ] = val;
+            std::copy( ptr + node_middle + 1, ptr + pos, nextptr );
+            std::copy( ptr + pos, ptr + node_size, nextptr + pos - node_middle );
+            nextptr[ pos - node_middle -1 ] = val;
         }
         else if( pos < node_middle )
         {
             // TODO check: pos is value_type based, not simd_type based
             ret = ptr[ node_middle-1 ];
-            std::copy( ptr + node_middle - 1, ptr + node_size, nextptr );
-            std::copy_backward( ptr + index2offset(pos), ptr + node_middle -1, ptr + node_middle );
+            std::copy( ptr + node_middle, ptr + node_size, nextptr );
+            std::copy_backward( ptr + pos, ptr + node_middle -1, ptr + node_middle );
+            ptr[ pos ] = val;
         }
         else // pos == node_middle
         {
             ret = val;
             std::copy( ptr + node_middle, ptr + node_size, nextptr );
         }
-        std::fill( ptr + node_middle, ptr + node_size, empty_value );
+        auto ev = empty_value;
+        std::fill( ptr + node_middle, ptr + node_size, ev );
         node_sizes_[node] = node_middle;
         node_sizes_[next] = node_middle;
         return std::make_pair( true, ret );
@@ -124,20 +133,17 @@ private:
     std::vector<uint16_t> node_map_;
     std::vector<uint16_t> node_sizes_;
 
-    template<typename T> friend std::ostream& operator<<( std::ostream&, const btree_row<T>& );
+    template<typename T, size_t s>
+    friend std::ostream& operator<<( std::ostream&, const btree_row<T,s>& );
 
     static constexpr uint16_t map_end = std::numeric_limits< uint16_t >::max();
     static constexpr value_type empty_value = std::numeric_limits< value_type >::max();
 
-    inline size_t index2offset( size_t index )
-    {
-        return index & simd_size_mask;
-    }
-
     size_t add_node()
     {
         row_.push_back( node_type() );
-        std::fill( row_.back().begin(), row_.back().end(), empty_value );
+        auto ev = empty_value;
+        std::fill( row_.back().begin(), row_.back().end(), ev );
         node_sizes_.push_back( 0 );
         uint16_t val = map_end; // XXX Some weird bug on push_back
         node_map_.push_back( val );
@@ -155,22 +161,34 @@ private:
         {
             cur = VcGreaterThan( node[idx], simdVal );
             pos += cur;
+            ++idx;
 
         } while( cur == simd_type::size() );
         return pos;
     }
 };
-template< typename Type_T >
-std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Type_T >& row )
+template< typename Type_T, size_t S >
+std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Type_T, S >& row )
 {
+    size_t i = 0;
     bool first = true;
     for( auto&& node : row.row_ )
     {
+        if( first )
+        {
+            out << "{";
+        }
+        else
+        {
+            out << " - ";
+            first = true;
+        }
+        out << "(" << i << "->" << row.node_map_[i] << ")";
+
         for( auto&& vec : node )
         {
             if( first )
             {
-                out << "{";
                 first = false;
             }
             else
@@ -179,6 +197,7 @@ std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Ty
             }
             out << vec;
         }
+        ++i;
     }
     out << "}";
     return out;
