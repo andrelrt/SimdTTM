@@ -35,6 +35,8 @@ TEST(BtreeRow, EmptyTest)
     up = row.insert( 0, 768 + 12 ); printRow( row, up );
     up = row.insert( 0, 1024 + 12 ); printRow( row, up );
 
+    up = row.insert( 0, 0x2ff ); printRow( row, up );
+
     up = row.insert( 0, 256 + 2 ); printRow( row, up );
     up = row.insert( 0, 512 + 2 ); printRow( row, up );
     up = row.insert( 1, 768 + 2 ); printRow( row, up );

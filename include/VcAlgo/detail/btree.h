@@ -59,10 +59,13 @@ public:
     using node_type = std::array<simd_type, simd_size>; // 256 bytes node
     using row_type = std::vector<node_type, allocator_template<node_type>>;
 
-    btree_row()
+    btree_row() : m_isLeaf(false)
     {
         add_node();
     }
+
+    void setLeaf(bool isLeaf = true) { m_isLeaf = isLeaf; }
+    bool getLeaf() const { return m_isLeaf; }
 
     std::pair<bool, value_type> insert( size_t extnode, value_type val )
     {
@@ -79,7 +82,6 @@ public:
             {
                 std::copy_backward( ptr + pos, ptr + node_sizes_[node], ptr + node_sizes_[node] +1 );
             }
-            // TODO check: pos is value_type based, not simd_type based
             ptr[pos] = val;
             ++node_sizes_[node];
             return std::make_pair( false, value_type(0) );
@@ -98,7 +100,6 @@ public:
         int32_t pos = upper_bound_node( row_[node], val );
         if( pos > node_middle )
         {
-            // TODO check: pos is value_type based, not simd_type based
             ret = ptr[node_middle];
             std::copy( ptr + node_middle + 1, ptr + pos, nextptr );
             std::copy( ptr + pos, ptr + node_size, nextptr + pos - node_middle );
@@ -106,7 +107,6 @@ public:
         }
         else if( pos < node_middle )
         {
-            // TODO check: pos is value_type based, not simd_type based
             ret = ptr[ node_middle-1 ];
             std::copy( ptr + node_middle, ptr + node_size, nextptr );
             std::copy_backward( ptr + pos, ptr + node_middle -1, ptr + node_middle );
@@ -124,18 +124,17 @@ public:
         return std::make_pair( true, ret );
     }
 
-
     size_t upper_bound( size_t extnode, value_type val )
     {
         range_check( extnode );
-        size_t node = translateNode( extnode );
-        return upper_bound_node( row_[node], val );
+        return upper_bound_node( row_[translateNode( extnode )], val );
     }
 
 private:
     row_type row_;
     std::vector<uint16_t> node_map_;
     std::vector<uint16_t> node_sizes_;
+    bool m_isLeaf;
 
     template<typename T, size_t s>
     friend std::ostream& operator<<( std::ostream&, const btree_row<T,s>& );
@@ -145,7 +144,7 @@ private:
 
     size_t translateNode( size_t extnode )
     {
-        size_t ret = 0;
+        uint16_t ret = 0;
         size_t cur = extnode;
         while( cur != 0 )
         {
@@ -209,7 +208,7 @@ std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Ty
             out << " - ";
             first = true;
         }
-        out << "(" << i << "->" << row.node_map_[i] << ")";
+        out << "(" << i << "->" << row.node_map_[i] << ":" << row.node_sizes_[i] << ")";
 
         for( auto&& vec : node )
         {
