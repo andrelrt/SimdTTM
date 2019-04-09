@@ -87,6 +87,64 @@ public:
             return std::make_pair( false, value_type(0) );
         }
 
+        return split_insert_node( node, val );
+    }
+
+    enum class RemoveMode
+    {
+        NotFound,
+        NodeOnly,
+        NodeOnlyLessThanMin,
+        ShiftRight,
+        ShiftLeft,
+        MergeRight,
+        MergeLeft
+    };
+
+    std::pair<DeleteMode, value_type> remove( size_t extnode, value_type val,
+                                              std::pair<bool, value_type> leftRoot,
+                                              std::pair<bool, value_type> rightRoot )
+    {
+        range_check( extnode );
+        size_t node = translateNode( extnode );
+
+        // Find element on node
+        int32_t pos = upper_bound_node( row_[node], val ) -1;
+        value_type* ptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[node].data() ));
+        if( pos == -1 || ptr[pos] != val  )
+            return std::make_pair( RemoveMode::NotFound, value_type(0) );
+
+        if( nodes_sizes_[node] > node_middle )
+        {
+            // Just remove from node
+            std::copy( ptr + pos, ptr + node_sizes_[node], ptr + pos -1 );
+            --node_sizes_[node];
+            ptr[ node_sizes_[node] ] = empty_value;
+            return std::make_pair( RemoveMode::NodeOnly, value_type(0) );
+        }
+    }
+
+    size_t upper_bound( size_t extnode, value_type val )
+    {
+        range_check( extnode );
+        return upper_bound_node( row_[translateNode( extnode )], val );
+    }
+
+private:
+    row_type row_;
+    std::vector<uint16_t> node_map_;
+    std::vector<uint16_t> node_sizes_;
+    bool m_isLeaf;
+
+    template<typename T, size_t s>
+    friend std::ostream& operator<<( std::ostream&, const btree_row<T,s>& );
+
+    static constexpr uint16_t map_end = std::numeric_limits< uint16_t >::max();
+    static constexpr value_type empty_value = std::numeric_limits< value_type >::max();
+
+    std::pair<bool, value_type> split_insert_node( size_t node, value_type val )
+    {
         // Split the node and strip the middle item
         size_t next = add_node();
         node_map_[next] = node_map_[node];
@@ -123,24 +181,6 @@ public:
         node_sizes_[next] = node_middle;
         return std::make_pair( true, ret );
     }
-
-    size_t upper_bound( size_t extnode, value_type val )
-    {
-        range_check( extnode );
-        return upper_bound_node( row_[translateNode( extnode )], val );
-    }
-
-private:
-    row_type row_;
-    std::vector<uint16_t> node_map_;
-    std::vector<uint16_t> node_sizes_;
-    bool m_isLeaf;
-
-    template<typename T, size_t s>
-    friend std::ostream& operator<<( std::ostream&, const btree_row<T,s>& );
-
-    static constexpr uint16_t map_end = std::numeric_limits< uint16_t >::max();
-    static constexpr value_type empty_value = std::numeric_limits< value_type >::max();
 
     size_t translateNode( size_t extnode )
     {
@@ -192,6 +232,7 @@ private:
         return pos;
     }
 };
+
 template< typename Type_T, size_t S >
 std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Type_T, S >& row )
 {
