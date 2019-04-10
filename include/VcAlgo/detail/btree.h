@@ -39,6 +39,17 @@
 namespace VcAlgo {
 namespace detail {
 
+enum class RemoveMode
+{
+    NotFound,
+    NodeOnly,
+    NodeOnlyLessThanMin,
+    ShiftRight,
+    ShiftLeft,
+    MergeRight,
+    MergeLeft
+};
+
 template< typename Type_T, // Value type
           size_t NODE_SIZE = 256,
           template <class...> class Alloc_T = Vc::Allocator,
@@ -69,8 +80,9 @@ public:
 
     std::pair<bool, value_type> insert( size_t extnode, value_type val )
     {
+        std::cout << val << ": ";
         range_check( extnode );
-        size_t node = translateNode( extnode );
+        size_t node = translateNode( extnode ).first;
 
         if( node_sizes_[node] < node_size )
         {
@@ -87,26 +99,17 @@ public:
             return std::make_pair( false, value_type(0) );
         }
 
-        return split_insert_node( node, val );
+        return std::make_pair( true, split_insert_node( node, val ) );
     }
 
-    enum class RemoveMode
+    std::pair<RemoveMode, value_type> remove( size_t extnode, value_type val,
+                                              value_type leftRoot, value_type rightRoot )
     {
-        NotFound,
-        NodeOnly,
-        NodeOnlyLessThanMin,
-        ShiftRight,
-        ShiftLeft,
-        MergeRight,
-        MergeLeft
-    };
-
-    std::pair<DeleteMode, value_type> remove( size_t extnode, value_type val,
-                                              std::pair<bool, value_type> leftRoot,
-                                              std::pair<bool, value_type> rightRoot )
-    {
+        std::cout << val << ": ";
         range_check( extnode );
-        size_t node = translateNode( extnode );
+        size_t prev;
+        size_t node;
+        std::tie( node, prev ) = translateNode( extnode );
 
         // Find element on node
         int32_t pos = upper_bound_node( row_[node], val ) -1;
@@ -115,20 +118,48 @@ public:
         if( pos == -1 || ptr[pos] != val  )
             return std::make_pair( RemoveMode::NotFound, value_type(0) );
 
-        if( nodes_sizes_[node] > node_middle )
+        if( node_sizes_[node] > node_middle ||
+            (node_map_[node] == map_end && node == 0) )
         {
             // Just remove from node
             std::copy( ptr + pos, ptr + node_sizes_[node], ptr + pos -1 );
             --node_sizes_[node];
             ptr[ node_sizes_[node] ] = empty_value;
-            return std::make_pair( RemoveMode::NodeOnly, value_type(0) );
+            if( node_sizes_[node] >= node_middle )
+                return std::make_pair( RemoveMode::NodeOnly, value_type(0) );
+            else
+                return std::make_pair( RemoveMode::NodeOnlyLessThanMin, value_type(0) );
         }
+
+        // Try shifts, right and left
+        if( node_map_[node] != map_end &&
+            node_sizes_[ node_map_[node] ] > node_middle )
+        {
+            return std::make_pair( RemoveMode::ShiftRight,
+                                   removeShiftRight( node, pos, rightRoot ) );
+        }
+
+        if( node != 0 &&
+            node_sizes_[ prev ] > node_middle )
+        {
+            return std::make_pair( RemoveMode::ShiftLeft,
+                                   removeShiftLeft( node, prev, pos, leftRoot ) );
+        }
+
+        // The last effort is merge right and left
+        if( node_map_[node] != map_end )
+        {
+            removeMergeRight( node, pos, rightRoot );
+            return std::make_pair( RemoveMode::MergeRight, value_type(0) );
+        }
+        removeMergeLeft( node, prev, pos, leftRoot );
+        return std::make_pair( RemoveMode::MergeLeft, value_type(0) );
     }
 
     size_t upper_bound( size_t extnode, value_type val )
     {
         range_check( extnode );
-        return upper_bound_node( row_[translateNode( extnode )], val );
+        return upper_bound_node( row_[translateNode( extnode ).first], val );
     }
 
 private:
@@ -143,7 +174,7 @@ private:
     static constexpr uint16_t map_end = std::numeric_limits< uint16_t >::max();
     static constexpr value_type empty_value = std::numeric_limits< value_type >::max();
 
-    std::pair<bool, value_type> split_insert_node( size_t node, value_type val )
+    value_type split_insert_node( size_t node, value_type val )
     {
         // Split the node and strip the middle item
         size_t next = add_node();
@@ -179,19 +210,59 @@ private:
         std::fill( ptr + node_middle, ptr + node_size, ev );
         node_sizes_[node] = node_middle;
         node_sizes_[next] = node_middle;
-        return std::make_pair( true, ret );
+        return ret;
     }
 
-    size_t translateNode( size_t extnode )
+    value_type removeShiftRight( size_t node, int32_t pos, value_type root )
     {
+        value_type* ptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[node].data() ) );
+        std::copy( ptr + pos, ptr + node_sizes_[node], ptr + pos -1 );
+        ptr[ node_sizes_[node] ] = root;
+
+        size_t next = node_map_[node];
+        ptr = const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[next].data() ) );
+        value_type ret = ptr[0];
+        std::copy( ptr + 1, ptr + node_sizes_[next], ptr );
+        --node_sizes_[next];
+        ptr[ node_sizes_[next] ] = empty_value;
+        return ret;
+    }
+
+    value_type removeShiftLeft( size_t node, size_t prev, int32_t pos, value_type root )
+    {
+        value_type* ptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[node].data() ) );
+        std::copy_backward( ptr, ptr + pos -1, ptr + pos );
+        ptr[ 0 ] = root;
+
+        ptr = const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[prev].data() ) );
+        --node_sizes_[prev];
+        value_type ret = ptr[ node_sizes_[prev] ];
+        ptr[ node_sizes_[prev] ] = empty_value;
+        return ret;
+    }
+
+    void removeMergeRight( size_t node, int32_t pos, value_type root )
+    {
+    }
+
+    void removeMergeLeft( size_t node, size_t prev, int32_t pos, value_type root )
+    {
+    }
+
+    std::pair<size_t, size_t> translateNode( size_t extnode )
+    {
+        uint16_t prev = 0;
         uint16_t ret = 0;
         size_t cur = extnode;
         while( cur != 0 )
         {
+            prev = ret;
             ret = node_map_[ ret ];
             --cur;
         }
-        return ret;
+        return std::make_pair( ret, prev );
     }
 
     void range_check( size_t node )
