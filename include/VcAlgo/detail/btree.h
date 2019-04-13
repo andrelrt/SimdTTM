@@ -115,14 +115,27 @@ public:
         int32_t pos = upper_bound_node( row_[node], val ) -1;
         value_type* ptr = const_cast<value_type*>(
                           reinterpret_cast<const value_type*>( row_[node].data() ));
-        if( pos == -1 || ptr[pos] != val  )
+        if( pos == -1 || ptr[pos] != val )
+        {
+            if( pos == -1 )
+                std::cout << "pos = -1: ";
+            else
+                std::cout << "pos = " << pos << ", ptr[pos] = " << ptr[pos] << ": ";
+
+            for( int32_t i = 0; i <= pos; ++i )
+            {
+                std::cout << ptr[i] << ",";
+            }
+
+
             return std::make_pair( RemoveMode::NotFound, value_type(0) );
+        }
 
         if( node_sizes_[node] > node_middle ||
             (node_map_[node] == map_end && node == 0) )
         {
             // Just remove from node
-            std::copy( ptr + pos, ptr + node_sizes_[node], ptr + pos -1 );
+            std::copy( ptr + pos +1, ptr + node_sizes_[node], ptr + pos );
             --node_sizes_[node];
             ptr[ node_sizes_[node] ] = empty_value;
             if( node_sizes_[node] >= node_middle )
@@ -217,8 +230,8 @@ private:
     {
         value_type* ptr = const_cast<value_type*>(
                           reinterpret_cast<const value_type*>( row_[node].data() ) );
-        std::copy( ptr + pos, ptr + node_sizes_[node], ptr + pos -1 );
-        ptr[ node_sizes_[node] ] = root;
+        std::copy( ptr + pos +1, ptr + node_sizes_[node], ptr + pos );
+        ptr[ node_sizes_[node]-1 ] = root;
 
         size_t next = node_map_[node];
         ptr = const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[next].data() ) );
@@ -233,7 +246,7 @@ private:
     {
         value_type* ptr = const_cast<value_type*>(
                           reinterpret_cast<const value_type*>( row_[node].data() ) );
-        std::copy_backward( ptr, ptr + pos -1, ptr + pos );
+        std::copy_backward( ptr, ptr + pos, ptr + pos +1 );
         ptr[ 0 ] = root;
 
         ptr = const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[prev].data() ) );
@@ -245,10 +258,45 @@ private:
 
     void removeMergeRight( size_t node, int32_t pos, value_type root )
     {
+        value_type* ptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[node].data() ) );
+        std::copy( ptr + pos +1, ptr + node_sizes_[node], ptr + pos );
+
+        size_t next = node_map_[node];
+        value_type* nextptr =
+            const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[next].data() ) );
+
+        ptr[ node_sizes_[node] -1 ] = root;
+        std::copy( nextptr, nextptr + node_sizes_[next], ptr + node_sizes_[node] );
+        auto ev = empty_value;
+        std::fill( nextptr, nextptr + node_sizes_[next], ev );
+
+        node_sizes_[node] += node_sizes_[next];
+        node_map_[node] = node_map_[next];
+        node_map_[next] = map_end;
+        // XXX may introduce some block fragmentation here.
+        //     possible solution: move last block to the empty space created here.
     }
 
     void removeMergeLeft( size_t node, size_t prev, int32_t pos, value_type root )
     {
+        value_type* ptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[node].data() ) );
+        value_type* prevptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[prev].data() ) );
+
+        prevptr[ node_sizes_[prev] ] = root;
+        std::copy( ptr, ptr + pos, prevptr + node_sizes_[prev] + 1);
+        std::copy( ptr + pos + 1, ptr + node_sizes_[node], prevptr + node_sizes_[prev] + pos +1 );
+
+        auto ev = empty_value;
+        std::fill( ptr, ptr + node_sizes_[node], ev );
+
+        node_sizes_[prev] += node_sizes_[node];
+        node_map_[prev] = node_map_[node];
+        node_map_[node] = map_end;
+        // XXX may introduce some block fragmentation here.
+        //     possible solution: move last block to the empty space created here.
     }
 
     std::pair<size_t, size_t> translateNode( size_t extnode )
@@ -299,7 +347,7 @@ private:
             pos += cur;
             ++idx;
 
-        } while( cur == simd_type::size() );
+        } while( cur == simd_type::size() && idx < node.size() );
         return pos;
     }
 };

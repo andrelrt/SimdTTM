@@ -53,7 +53,8 @@ TEST(BtreeRow, EmptyTest)
     VcAlgo::detail::btree_row<int32_t, 16> row;
 
     {
-    std::cout << "Inserting -------------------------------------------------------------------" << std::endl;
+    std::cout << "Inserting -------------------------------------------------------------------\n"
+              << "-----------------------------------------------------------------------------" << std::endl;
     auto up = row.insert( 0, 256 ); printRow( row, up );
     up = row.insert( 0, 512 ); printRow( row, up );
     up = row.insert( 0, 768 ); printRow( row, up );
@@ -97,9 +98,9 @@ TEST(BtreeRow, EmptyTest)
     up = row.insert( 1, 1024 + 14 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 1 ); printRow( row, up );
-    up = row.insert( 0, 512 + 1 ); printRow( row, up );
-    up = row.insert( 1, 768 + 1 ); printRow( row, up );
-    up = row.insert( 2, 1024 + 1 ); printRow( row, up );
+    up = row.insert( 1, 512 + 1 ); printRow( row, up );
+    up = row.insert( 2, 768 + 1 ); printRow( row, up );
+    up = row.insert( 3, 1024 + 1 ); printRow( row, up );
 
     up = row.insert( 0, 256 + 3 ); printRow( row, up );
     up = row.insert( 1, 512 + 3 ); printRow( row, up );
@@ -139,7 +140,8 @@ TEST(BtreeRow, EmptyTest)
 
 
     {
-    std::cout << "Removing -------------------------------------------------------------------" << std::endl;
+    std::cout << "Removing -------------------------------------------------------------------\n"
+              << "----------------------------------------------------------------------------" << std::endl;
     // Remove
     auto up = row.remove( 3, 1024 + 15, 0, 0 ); printRow( row, up );
     up = row.remove( 2, 768 + 15, 0, 0 ); printRow( row, up );
@@ -176,37 +178,37 @@ TEST(BtreeRow, EmptyTest)
     up = row.remove( 1, 512 + 3, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 256 + 3, 0, 0 ); printRow( row, up );
 
-    up = row.remove( 2, 1024 + 1, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 768 + 1, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 512 + 1, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 256 + 1, 0, 0 ); printRow( row, up );
+    up = row.remove( 3, 1024 + 1, 1024, 0 ); printRow( row, up );
+    up = row.remove( 2, 768 + 1, 0x2ff, 0 ); printRow( row, up );
+    up = row.remove( 1, 512 + 1, 0, 0x20e ); printRow( row, up );
+    up = row.remove( 0, 256 + 1, 0, 0x10e ); printRow( row, up );
 
-    up = row.remove( 1, 1024 + 14, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 768 + 14, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 512 + 14, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 256 + 14, 0, 0 ); printRow( row, up );
+    up = row.remove( 2, 1024 + 14, 0x30e, 0 ); printRow( row, up );
+    up = row.remove( 2, 768 + 14, 0x30c, 0 ); printRow( row, up );
+    up = row.remove( 1, 512 + 14, 0, 0 ); printRow( row, up );
+    up = row.remove( 0, 256 + 14, 0, 0x200 ); printRow( row, up );
 
-    up = row.remove( 1, 1024 + 10, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 768 + 10, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 512 + 10, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 256 + 10, 0, 0 ); printRow( row, up );
+    up = row.remove( 2, 1024 + 10, 0x30a, 0 ); printRow( row, up );
+    up = row.remove( 2, 768 + 10, 0x308, 0 ); printRow( row, up );
+    up = row.remove( 1, 512 + 10, 0, 0 ); printRow( row, up );
+    up = row.remove( 0, 256 + 10, 0, 0x202 ); printRow( row, up );
 
-    up = row.remove( 1, 1024 + 6, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 768 + 6, 0, 0 ); printRow( row, up );
+    up = row.remove( 1, 1024 + 6, 0x306, 0 ); printRow( row, up );
+    up = row.remove( 1, 768 + 6, 0x304, 0 ); printRow( row, up );
     up = row.remove( 0, 512 + 6, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 256 + 6, 0, 0 ); printRow( row, up );
 
-    up = row.remove( 1, 1024 + 2, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 768 + 2, 0, 0 ); printRow( row, up );
+    up = row.remove( 1, 1024 + 2, 0x302, 0 ); printRow( row, up );
+    up = row.remove( 1, 768 + 2, 0x300, 0 ); printRow( row, up );
     up = row.remove( 0, 512 + 2, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 256 + 2, 0, 0 ); printRow( row, up );
 
-    up = row.remove( 0, 0x2ff, 0, 0 ); printRow( row, up );
-
-    up = row.remove( 0, 1024 + 12, 0, 0 ); printRow( row, up );
+    up = row.remove( 1, 1024 + 12, 0x2ff, 0 ); printRow( row, up );
     up = row.remove( 0, 768 + 12, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 512 + 12, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 256 + 12, 0, 0 ); printRow( row, up );
+
+    up = row.remove( 0, 0x2ff, 0, 0 ); printRow( row, up );
 
     up = row.remove( 0, 1024 + 4, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 768 + 4, 0, 0 ); printRow( row, up );
