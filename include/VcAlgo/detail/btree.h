@@ -80,7 +80,6 @@ public:
 
     std::pair<bool, value_type> insert( size_t extnode, value_type val )
     {
-        std::cout << val << ": ";
         range_check( extnode );
         size_t node = translateNode( extnode ).first;
 
@@ -105,7 +104,6 @@ public:
     std::pair<RemoveMode, value_type> remove( size_t extnode, value_type val,
                                               value_type leftRoot, value_type rightRoot )
     {
-        std::cout << val << ": ";
         range_check( extnode );
         size_t prev;
         size_t node;
@@ -116,20 +114,7 @@ public:
         value_type* ptr = const_cast<value_type*>(
                           reinterpret_cast<const value_type*>( row_[node].data() ));
         if( pos == -1 || ptr[pos] != val )
-        {
-            if( pos == -1 )
-                std::cout << "pos = -1: ";
-            else
-                std::cout << "pos = " << pos << ", ptr[pos] = " << ptr[pos] << ": ";
-
-            for( int32_t i = 0; i <= pos; ++i )
-            {
-                std::cout << ptr[i] << ",";
-            }
-
-
             return std::make_pair( RemoveMode::NotFound, value_type(0) );
-        }
 
         if( node_sizes_[node] > node_middle ||
             (node_map_[node] == map_end && node == 0) )
