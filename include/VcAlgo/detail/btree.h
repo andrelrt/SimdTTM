@@ -23,15 +23,17 @@
 #pragma once
 
 #include <deque>
-#include <vector>
-#include <memory>
-#include <utility>
-#include <iterator>
-#include <stdexcept>
 #include <functional>
-#include <type_traits>
 #include <iostream>
+#include <iterator>
+#include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
 #include <Vc/Vc>
 
 #include "operators.h"
@@ -77,6 +79,11 @@ public:
 
     void setLeaf(bool isLeaf = true) { m_isLeaf = isLeaf; }
     bool getLeaf() const { return m_isLeaf; }
+
+    bool isRoot() const
+    {
+        return node_map_[0] == map_end;
+    }
 
     std::pair<bool, value_type> insert( size_t extnode, value_type val )
     {
@@ -154,10 +161,16 @@ public:
         return std::make_pair( RemoveMode::MergeLeft, value_type(0) );
     }
 
-    size_t upper_bound( size_t extnode, value_type val )
+    std::pair<size_t, bool> upper_bound( size_t extnode, value_type val )
     {
         range_check( extnode );
-        return upper_bound_node( row_[translateNode( extnode ).first], val );
+        size_t node = translateNode( extnode ).first;
+        int32_t pos = upper_bound_node( row_[node], val );
+
+        value_type* ptr = const_cast<value_type*>(
+                          reinterpret_cast<const value_type*>( row_[node].data() ));
+
+        return std::make_pair( pos, pos != 0 && ptr[pos-1] == val );
     }
 
 private:
@@ -337,6 +350,88 @@ private:
     }
 };
 
+template< typename Type_T, // Value type
+          size_t NODE_SIZE = 256,
+          template <class...> class Alloc_T = Vc::Allocator,
+          typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
+class btree
+{
+public:
+    using value_type = Type_T;
+    using simd_type = Vc::Vector< value_type >;
+private:
+    static constexpr size_t node_size = NODE_SIZE;
+    static constexpr size_t byte_size = node_size * sizeof(value_type);
+    static constexpr size_t simd_size = node_size / simd_type::size();
+    static constexpr size_t node_middle = node_size / 2;
+    static constexpr size_t simd_size_mask = simd_type::size() -1;
+public:
+    template<typename Val_T> using allocator_template = Alloc_T<Val_T>;
+    using node_type = std::array<simd_type, simd_size>; // 256 bytes node
+    using row_type = btree_row< value_type, node_size, allocator_template >;
+    using btree_type = std::vector< row_type, allocator_template< row_type > >;
+
+
+    btree() : data_(1)
+    {
+        data_.front().setLeaf( true );
+    }
+
+    void insert( value_type val )
+    {
+        assert( data_.back().isRoot() );
+
+        std::vector< size_t > nodes;
+        nodes.reserve( data_.size() );
+
+        size_t curNode = 0;
+        for( auto it = data_.rbegin(); it != data_.rend(); ++it )
+        {
+            auto next = it->upper_bound( curNode, val );
+            // same value is not inserted twice
+            if( next.second )
+                return;
+
+            nodes.push_back( curNode );
+            curNode = curNode * node_size + next.first;
+        }
+
+        std::pair<bool, value_type> ins = std::make_pair( false, val );
+        for( auto& row : data_ )
+        {
+            ins = row.insert( nodes.back(), ins.second );
+            if( !ins.first )
+                return;
+
+            nodes.pop_back();
+        }
+        data_.emplace_back();
+        data_.back().insert( 0, ins.second );
+    }
+
+private:
+    btree_type data_;
+
+    template<typename T, size_t s>
+    friend std::ostream& operator<<( std::ostream&, const btree<T,s>& );
+
+    // Returns a tuple< bool found, size_t row, size_t node >
+    std::tuple<bool, size_t, size_t> find_row_node( value_type val ) const
+    {
+        size_t curNode = 0;
+        for( size_t i = data_.size(); i > 0; --i )
+        {
+            auto next = data_[ i-1 ].upper_bound( curNode, val );
+            if( next.second )
+                return std::make_tuple( true, i-1, next.first );
+
+            curNode = curNode * node_size + next;
+        }
+
+        return std::make_tuple( false, 0, curNode );
+    }
+};
+
 template< typename Type_T, size_t S >
 std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Type_T, S >& row )
 {
@@ -370,6 +465,18 @@ std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Ty
         ++i;
     }
     out << "}";
+    return out;
+}
+
+template< typename Type_T, size_t S >
+std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree< Type_T, S >& btree )
+{
+    size_t i = 0;
+    for( auto it = btree.data_.rbegin(); it != btree.data_.rend(); ++it )
+    {
+        out << "Row " << i << ": " << *it << std::endl;
+        ++i;
+    }
     return out;
 }
 

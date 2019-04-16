@@ -48,6 +48,102 @@ void printRow( VcAlgo::detail::btree_row<int32_t, 16>& row,
     std::cout << std::endl << std::endl;
 }
 
+void printBtree( VcAlgo::detail::btree<int32_t, 16>& btree )
+{
+    std::cout << std::hex << btree << std::endl;
+}
+
+TEST(Btree, EmptyTest)
+{
+    VcAlgo::detail::btree<int32_t, 16> btree;
+    {
+    std::cout << "Inserting -------------------------------------------------------------------\n"
+              << "-----------------------------------------------------------------------------" << std::endl;
+    btree.insert( 0x100 ); printBtree( btree );
+    btree.insert( 0x200 ); printBtree( btree );
+    btree.insert( 0x300 ); printBtree( btree );
+    btree.insert( 0x400 ); printBtree( btree );
+
+    btree.insert( 0x100 + 8 ); printBtree( btree );
+    btree.insert( 0x200 + 8 ); printBtree( btree );
+    btree.insert( 0x300 + 8 ); printBtree( btree );
+    btree.insert( 0x400 + 8 ); printBtree( btree );
+
+    btree.insert( 0x100 + 4 ); printBtree( btree );
+    btree.insert( 0x200 + 4 ); printBtree( btree );
+    btree.insert( 0x300 + 4 ); printBtree( btree );
+    btree.insert( 0x400 + 4 ); printBtree( btree );
+
+    btree.insert( 0x100 + 12 ); printBtree( btree );
+    btree.insert( 0x200 + 12 ); printBtree( btree );
+    btree.insert( 0x300 + 12 ); printBtree( btree );
+    btree.insert( 0x400 + 12 ); printBtree( btree );
+
+    btree.insert( 0x2ff ); printBtree( btree );
+
+    btree.insert( 0x100 + 2 ); printBtree( btree );
+    btree.insert( 0x200 + 2 ); printBtree( btree );
+    btree.insert( 0x300 + 2 ); printBtree( btree );
+    btree.insert( 0x400 + 2 ); printBtree( btree );
+
+    btree.insert( 0x100 + 6 ); printBtree( btree );
+    btree.insert( 0x200 + 6 ); printBtree( btree );
+    btree.insert( 0x300 + 6 ); printBtree( btree );
+    btree.insert( 0x400 + 6 ); printBtree( btree );
+
+    btree.insert( 0x100 + 10 ); printBtree( btree );
+    btree.insert( 0x200 + 10 ); printBtree( btree );
+    btree.insert( 0x300 + 10 ); printBtree( btree );
+    btree.insert( 0x400 + 10 ); printBtree( btree );
+
+    btree.insert( 0x100 + 14 ); printBtree( btree );
+    btree.insert( 0x200 + 14 ); printBtree( btree );
+    btree.insert( 0x300 + 14 ); printBtree( btree );
+    btree.insert( 0x400 + 14 ); printBtree( btree );
+
+    btree.insert( 0x100 + 1 ); printBtree( btree );
+    btree.insert( 0x200 + 1 ); printBtree( btree );
+    btree.insert( 0x300 + 1 ); printBtree( btree );
+    btree.insert( 0x400 + 1 ); printBtree( btree );
+
+    btree.insert( 0x100 + 3 ); printBtree( btree );
+    btree.insert( 0x200 + 3 ); printBtree( btree );
+    btree.insert( 0x300 + 3 ); printBtree( btree );
+    btree.insert( 0x400 + 3 ); printBtree( btree );
+
+    btree.insert( 0x100 + 5 ); printBtree( btree );
+    btree.insert( 0x200 + 5 ); printBtree( btree );
+    btree.insert( 0x300 + 5 ); printBtree( btree );
+    btree.insert( 0x400 + 5 ); printBtree( btree );
+
+    btree.insert( 0x100 + 7 ); printBtree( btree );
+    btree.insert( 0x200 + 7 ); printBtree( btree );
+    btree.insert( 0x300 + 7 ); printBtree( btree );
+    btree.insert( 0x400 + 7 ); printBtree( btree );
+
+    btree.insert( 0x100 + 9 ); printBtree( btree );
+    btree.insert( 0x200 + 9 ); printBtree( btree );
+    btree.insert( 0x300 + 9 ); printBtree( btree );
+    btree.insert( 0x400 + 9 ); printBtree( btree );
+
+    btree.insert( 0x100 + 11 ); printBtree( btree );
+    btree.insert( 0x200 + 11 ); printBtree( btree );
+    btree.insert( 0x300 + 11 ); printBtree( btree );
+    btree.insert( 0x400 + 11 ); printBtree( btree );
+
+    btree.insert( 0x100 + 13 ); printBtree( btree );
+    btree.insert( 0x200 + 13 ); printBtree( btree );
+    btree.insert( 0x300 + 13 ); printBtree( btree );
+    btree.insert( 0x400 + 13 ); printBtree( btree );
+
+    btree.insert( 0x100 + 15 ); printBtree( btree );
+    btree.insert( 0x200 + 15 ); printBtree( btree );
+    btree.insert( 0x300 + 15 ); printBtree( btree );
+    btree.insert( 0x400 + 15 ); printBtree( btree );
+
+    }
+}
+
 TEST(BtreeRow, EmptyTest)
 {
     VcAlgo::detail::btree_row<int32_t, 16> row;
@@ -132,10 +228,10 @@ TEST(BtreeRow, EmptyTest)
     up = row.insert( 2, 768 + 13 ); printRow( row, up );
     up = row.insert( 3, 1024 + 13 ); printRow( row, up );
 
-    up = row.insert( 0, 256 + 15 ); printRow( row, up );
+    up = row.insert( 1, 256 + 15 ); printRow( row, up );
     up = row.insert( 1, 512 + 15 ); printRow( row, up );
-    up = row.insert( 2, 768 + 15 ); printRow( row, up );
-    up = row.insert( 3, 1024 + 15 ); printRow( row, up );
+    up = row.insert( 4, 768 + 15 ); printRow( row, up );
+    up = row.insert( 4, 1024 + 15 ); printRow( row, up );
     }
 
 
@@ -143,10 +239,10 @@ TEST(BtreeRow, EmptyTest)
     std::cout << "Removing -------------------------------------------------------------------\n"
               << "----------------------------------------------------------------------------" << std::endl;
     // Remove
-    auto up = row.remove( 3, 1024 + 15, 0, 0 ); printRow( row, up );
-    up = row.remove( 2, 768 + 15, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 512 + 15, 0, 0 ); printRow( row, up );
-    up = row.remove( 0, 256 + 15, 0, 0 ); printRow( row, up );
+    auto up = row.remove( 5, 1024 + 15, 0x407, 0 ); printRow( row, up );
+    up = row.remove( 4, 768 + 15, 0, 0 ); printRow( row, up );
+    up = row.remove( 2, 512 + 15, 0, 0 ); printRow( row, up );
+    up = row.remove( 1, 256 + 15, 0, 0 ); printRow( row, up );
 
     up = row.remove( 3, 1024 + 13, 0, 0 ); printRow( row, up );
     up = row.remove( 2, 768 + 13, 0, 0 ); printRow( row, up );
