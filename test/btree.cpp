@@ -53,6 +53,16 @@ void printBtree( VcAlgo::detail::btree<int32_t, 16>& btree )
     std::cout << std::hex << btree << std::endl;
 }
 
+TEST(Btree, BigTest)
+{
+    VcAlgo::detail::btree<int32_t, 16> btree;
+    for( int32_t i = 0; i <= 0x10000; ++i )
+    {
+        btree.insert( i );
+    }
+    printBtree( btree );
+}
+
 TEST(Btree, EmptyTest)
 {
     VcAlgo::detail::btree<int32_t, 16> btree;

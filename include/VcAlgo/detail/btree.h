@@ -27,6 +27,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
@@ -72,13 +73,13 @@ public:
     using node_type = std::array<simd_type, simd_size>; // 256 bytes node
     using row_type = std::vector<node_type, allocator_template<node_type>>;
 
-    btree_row() : m_isLeaf(false)
+    btree_row() : last_ordered_node_(0), isLeaf_(false)
     {
         add_node();
     }
 
-    void setLeaf(bool isLeaf = true) { m_isLeaf = isLeaf; }
-    bool getLeaf() const { return m_isLeaf; }
+    void setLeaf(bool isLeaf = true) { isLeaf_ = isLeaf; }
+    bool getLeaf() const { return isLeaf_; }
 
     bool isRoot() const
     {
@@ -173,11 +174,20 @@ public:
         return std::make_pair( pos, pos != 0 && ptr[pos-1] == val );
     }
 
+    size_t countBeforeNode( size_t extnode )
+    {
+        range_check( extnode );
+        size_t node = translateNode( extnode ).first;
+
+        return std::accumulate( node_sizes_.begin(), node_sizes_.begin() + node, size_t(0) );
+    }
+
 private:
     row_type row_;
     std::vector<uint16_t> node_map_;
     std::vector<uint16_t> node_sizes_;
-    bool m_isLeaf;
+    size_t last_ordered_node_;
+    bool isLeaf_;
 
     template<typename T, size_t s>
     friend std::ostream& operator<<( std::ostream&, const btree_row<T,s>& );
@@ -191,6 +201,7 @@ private:
         size_t next = add_node();
         node_map_[next] = node_map_[node];
         node_map_[node] = next;
+        last_ordered_node_ == (next == node + 1) ? next : node;
 
         value_type ret;
         value_type* ptr = const_cast<value_type*>(
@@ -299,13 +310,20 @@ private:
 
     std::pair<size_t, size_t> translateNode( size_t extnode )
     {
+        if( extnode < last_ordered_node_ )
+            return std::make_pair( extnode, extnode -1 );
+
+        uint16_t ret = last_ordered_node_;
         uint16_t prev = 0;
-        uint16_t ret = 0;
-        size_t cur = extnode;
+        size_t cur = extnode - ret;
         while( cur != 0 )
         {
             prev = ret;
             ret = node_map_[ ret ];
+            if( ret == prev + 1 )
+            {
+                last_ordered_node_ = ret;
+            }
             --cur;
         }
         return std::make_pair( ret, prev );
@@ -393,7 +411,8 @@ public:
                 return;
 
             nodes.push_back( curNode );
-            curNode = curNode * node_size + next.first;
+            size_t before = it->countBeforeNode( curNode );
+            curNode = before + next.first;
         }
 
         std::pair<bool, value_type> ins = std::make_pair( false, val );
@@ -414,22 +433,6 @@ private:
 
     template<typename T, size_t s>
     friend std::ostream& operator<<( std::ostream&, const btree<T,s>& );
-
-    // Returns a tuple< bool found, size_t row, size_t node >
-    std::tuple<bool, size_t, size_t> find_row_node( value_type val ) const
-    {
-        size_t curNode = 0;
-        for( size_t i = data_.size(); i > 0; --i )
-        {
-            auto next = data_[ i-1 ].upper_bound( curNode, val );
-            if( next.second )
-                return std::make_tuple( true, i-1, next.first );
-
-            curNode = curNode * node_size + next;
-        }
-
-        return std::make_tuple( false, 0, curNode );
-    }
 };
 
 template< typename Type_T, size_t S >
@@ -475,6 +478,7 @@ std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree< Type_T
     for( auto it = btree.data_.rbegin(); it != btree.data_.rend(); ++it )
     {
         out << "Row " << i << ": " << *it << std::endl;
+        out << "-----------------------------------------------------------------------------" << std::endl;
         ++i;
     }
     return out;
