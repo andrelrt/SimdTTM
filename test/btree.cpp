@@ -48,7 +48,8 @@ void printRow( VcAlgo::detail::btree_row<int32_t, 16>& row,
     std::cout << std::endl << std::endl;
 }
 
-void printBtree( VcAlgo::detail::btree<int32_t, 16>& btree )
+template< class T >
+void printBtree( T& btree )
 {
     std::cout << std::hex << btree << std::endl;
 }

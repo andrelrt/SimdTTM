@@ -29,7 +29,7 @@
 #include <boost/timer/timer.hpp>
 
 #include <Vc/Vc>
-#include <VcAlgo/algorithm>
+#include <VcAlgo/algorithm.h>
 
 template< typename Val_T >
 using avector = std::vector< Val_T, Vc::Allocator<Val_T> >;

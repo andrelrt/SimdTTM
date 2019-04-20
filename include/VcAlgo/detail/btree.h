@@ -313,9 +313,9 @@ private:
         if( extnode < last_ordered_node_ )
             return std::make_pair( extnode, extnode -1 );
 
-        uint16_t ret = last_ordered_node_;
+        uint16_t ret = 0;
         uint16_t prev = 0;
-        size_t cur = extnode - ret;
+        size_t cur = extnode;
         while( cur != 0 )
         {
             prev = ret;
