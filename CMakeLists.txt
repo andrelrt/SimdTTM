@@ -1,7 +1,19 @@
 project(VcAlgo)
 cmake_minimum_required(VERSION 3.5)
 
-find_package(Vc 1.0 REQUIRED)
+find_package(Vc 1.0)
+
+option(STTM_VC_LIBRARY_ENABLED "Use Vc library" ON)
+if(Vc_FOUND AND STTM_VC_LIBRARY_ENABLED)
+    message(STATUS "Using Vc libraries")
+    set(SIMD_LINK_LIBRARY Vc::Vc)
+    set(SIMD_DEFINE STTM_VC_ENABLED)
+else()
+    message(STATUS "Using SSE intrinsics")
+    find_package(Boost 1.56.0 REQUIRED)
+    set(SIMD_LINK_LIBRARY "")
+    set(SIMD_DEFINE STTM_SSE_ENABLED)
+endif()
 
 if(MSVC)
     add_compile_options(
@@ -9,6 +21,7 @@ if(MSVC)
         "$<$<CONFIG:RELEASE>:/O2>"
         "$<$<CONFIG:RELEASE>:/Oi>"
         "/MD$<$<CONFIG:Debug>:d>"
+        "/D${SIMD_DEFINE}"
     )
 else()
     add_compile_options(
@@ -16,6 +29,7 @@ else()
         "-march=native"
         "-mtune=native"
         "-fno-strict-aliasing"
+        "-D${SIMD_DEFINE}"
     )
 endif()
 

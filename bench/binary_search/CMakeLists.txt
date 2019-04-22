@@ -7,13 +7,12 @@ add_executable(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
 	SYSTEM PUBLIC
     ${Boost_INCLUDE_DIRS}
-    ${Vc_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     ${Boost_LIBRARIES}
-    ${Vc_LIBRARIES}
+    ${SIMD_LINK_LIBRARY}
 )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)

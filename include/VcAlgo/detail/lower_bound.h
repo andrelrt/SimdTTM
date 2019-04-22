@@ -26,20 +26,18 @@
 #include <type_traits>
 #include <iterator>
 
-#include <Vc/Vc>
+#include <VcAlgo/detail/simd/compatibility.h>
 
-#include "operators.h"
-
-namespace VcAlgo {
+namespace SimdTTM {
 namespace detail {
 
-template<class ForwardIterator, typename TAG_T>
+template< class ForwardIterator >
 class simd_filler
 {
     using iterator_type = ForwardIterator;
     using value_type = typename std::iterator_traits< iterator_type >::value_type;
-    using simd_type = Vc::Vector< value_type, TAG_T >;
-    static constexpr auto array_size = Vc::Vector< value_type, TAG_T >::size();
+    using simd_type = simd::simd_type< value_type >;
+    static constexpr auto array_size = simd::simd_size< value_type >();
 
     std::array<iterator_type, array_size +1> iterators;
 
@@ -55,13 +53,13 @@ public:
         for( size_t i = 0; i < array_size; ++i )
         {
             std::advance( it, step );
-            Vc::prefetchClose( reinterpret_cast<const void*>( &(*it) ) );
+            simd::prefetch( reinterpret_cast<const void*>( &(*it) ) );
         }
     }
 
     inline simd_type get_compare( size_t step, ForwardIterator beg )
     {
-        Vc::prefetchClose( reinterpret_cast<const void*>( &iterators ) );
+        simd::prefetch( reinterpret_cast<const void*>( &iterators ) );
         auto it = beg;
         iterators[ 0 ] = it;
         simd_type cmp;
@@ -75,7 +73,7 @@ public:
     }
 };
 
-template <class ForwardIterator, class T, typename TAG_T,
+template <class ForwardIterator, class T,
           typename std::enable_if<
                 std::is_arithmetic< typename std::iterator_traits< ForwardIterator >::value_type >
                    ::value >
@@ -84,15 +82,12 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
 {
     using iterator_type = ForwardIterator;
     using value_type = typename std::iterator_traits< iterator_type >::value_type;
-
-    using simd_type = Vc::Vector< value_type, TAG_T >;
-
-    constexpr size_t array_size = simd_type::size();
+    using simd_type = simd::simd_type< value_type >;
+    static constexpr auto array_size = simd::simd_size< value_type >();
 
     auto beg = ibeg;
     auto end = iend;
-    simd_type skey( key );
-    simd_filler<ForwardIterator, TAG_T> filler;
+    simd_filler<ForwardIterator> filler;
 
     size_t size = std::distance( beg, end );
     if( size < 0x20, 0 )
@@ -104,6 +99,7 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     size_t step = size / (array_size + 1);
     filler.prefetch( step, beg );
 
+    simd_type skey = simd::from_value( key );
     while( 1 )
     {
         simd_type cmp = filler.get_compare( step, beg );
@@ -111,7 +107,7 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
         step /= (array_size + 1);
 
         // N-Way search
-        size_t i = VcGreaterThan( cmp, skey );
+        size_t i = simd::greater_than( cmp, skey );
 
         // Recalculate iterators
         beg = filler[ i ];
@@ -132,9 +128,8 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     }
 }
 
-} // namespace VcAlgo::detail
+} // namespace SimdTTM::detail
 
 using detail::lower_bound;
 
-} // namespace VcAlgo
-
+} // namespace SimdTTM

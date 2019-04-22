@@ -26,6 +26,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <sstream>
@@ -35,11 +36,9 @@
 #include <utility>
 #include <vector>
 
-#include <Vc/Vc>
+#include <VcAlgo/detail/simd/compatibility.h>
 
-#include "operators.h"
-
-namespace VcAlgo {
+namespace SimdTTM {
 namespace detail {
 
 enum class RemoveMode
@@ -55,19 +54,19 @@ enum class RemoveMode
 
 template< typename Type_T, // Value type
           size_t NODE_SIZE = 256,
-          template <class...> class Alloc_T = Vc::Allocator,
+          template <class...> class Alloc_T = simd::allocator,
           typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
 class btree_row
 {
 public:
     using value_type = Type_T;
-    using simd_type = Vc::Vector< value_type >;
+    using simd_type = simd::simd_type< value_type >;
 private:
     static constexpr size_t node_size = NODE_SIZE;
     static constexpr size_t byte_size = node_size * sizeof(value_type);
-    static constexpr size_t simd_size = node_size / simd_type::size();
+    static constexpr size_t simd_size = node_size / simd::simd_size< value_type >();
     static constexpr size_t node_middle = node_size / 2;
-    static constexpr size_t simd_size_mask = simd_type::size() -1;
+    static constexpr size_t simd_size_mask = simd::simd_size< value_type >() -1;
 public:
     template<typename Val_T> using allocator_template = Alloc_T<Val_T>;
     using node_type = std::array<simd_type, simd_size>; // 256 bytes node
@@ -359,7 +358,7 @@ private:
         size_t idx = 0;
         do
         {
-            cur = VcGreaterThan( node[idx], simdVal );
+            cur = simd::greater_than( node[idx], simdVal );
             pos += cur;
             ++idx;
 
@@ -370,19 +369,19 @@ private:
 
 template< typename Type_T, // Value type
           size_t NODE_SIZE = 256,
-          template <class...> class Alloc_T = Vc::Allocator,
+          template <class...> class Alloc_T = simd::allocator,
           typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
 class btree
 {
 public:
     using value_type = Type_T;
-    using simd_type = Vc::Vector< value_type >;
+    using simd_type = simd::simd_type< value_type >;
 private:
     static constexpr size_t node_size = NODE_SIZE;
     static constexpr size_t byte_size = node_size * sizeof(value_type);
-    static constexpr size_t simd_size = node_size / simd_type::size();
+    static constexpr size_t simd_size = node_size / simd::simd_size< value_type >();
     static constexpr size_t node_middle = node_size / 2;
-    static constexpr size_t simd_size_mask = simd_type::size() -1;
+    static constexpr size_t simd_size_mask = simd::simd_size< value_type >() -1;
 public:
     template<typename Val_T> using allocator_template = Alloc_T<Val_T>;
     using node_type = std::array<simd_type, simd_size>; // 256 bytes node
@@ -436,7 +435,7 @@ private:
 };
 
 template< typename Type_T, size_t S >
-std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Type_T, S >& row )
+std::ostream& operator<<( std::ostream& out, const SimdTTM::detail::btree_row< Type_T, S >& row )
 {
     size_t i = 0;
     bool first = true;
@@ -472,7 +471,7 @@ std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree_row< Ty
 }
 
 template< typename Type_T, size_t S >
-std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree< Type_T, S >& btree )
+std::ostream& operator<<( std::ostream& out, const SimdTTM::detail::btree< Type_T, S >& btree )
 {
     size_t i = 0;
     for( auto it = btree.data_.rbegin(); it != btree.data_.rend(); ++it )
@@ -627,9 +626,9 @@ std::ostream& operator<<( std::ostream& out, const VcAlgo::detail::btree< Type_T
 //    index_type index_;
 //};
 
-} // namespace VcAlgo::detail
+} // namespace SimdTTM::detail
 
 //using detail::lower_bound;
 
-} // namespace VcAlgo
+} // namespace SimdTTM
 

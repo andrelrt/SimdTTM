@@ -27,14 +27,14 @@
 #include <array>
 #include <vector>
 #include <boost/timer/timer.hpp>
+#include <boost/align/aligned_allocator.hpp> 
 
-#include <Vc/Vc>
 #include <VcAlgo/algorithm.h>
 
 template< typename Val_T >
-using avector = std::vector< Val_T, Vc::Allocator<Val_T> >;
+using avector = std::vector< Val_T, boost::alignment::aligned_allocator<Val_T> >;
 
-template< class Cont_T, typename TAG_T >
+template< class Cont_T >
 struct StdLowerBound
 {
 	using container_type = Cont_T;
@@ -54,22 +54,21 @@ private:
     const container_type& ref_;
 };
 
-template< class Cont_T, typename TAG_T >
-struct VcAlgoLowerBound
+template< class Cont_T >
+struct SimdTTMLowerBound
 {
 	using container_type = Cont_T;
     using value_type     = typename container_type::value_type;
     using const_iterator = typename container_type::const_iterator;
 
-    explicit VcAlgoLowerBound( const container_type& ref ) : ref_( ref ){}
+    explicit SimdTTMLowerBound( const container_type& ref ) : ref_( ref ){}
 
     void build_index(){}
 
     const_iterator find( const value_type& key )
     {
-        auto first = VcAlgo::lower_bound< const_iterator,
-                                  value_type,
-                                  TAG_T>( ref_.begin(), ref_.end(), key );
+        auto first = SimdTTM::lower_bound< const_iterator,
+                                  value_type >( ref_.begin(), ref_.end(), key );
 
         return (first!=ref_.end() && !(key<*first)) ? first : ref_.end();
     }
@@ -77,22 +76,21 @@ private:
     const container_type& ref_;
 };
 
-template< class Cont_T, typename TAG_T >
-struct VcAlgoPointerLowerBound
+template< class Cont_T >
+struct SimdTTMPointerLowerBound
 {
 	using container_type = Cont_T;
     using value_type     = typename container_type::value_type;
     using const_iterator = typename container_type::const_iterator;
 
-    explicit VcAlgoPointerLowerBound( const container_type& ref ) : ref_( ref ){}
+    explicit SimdTTMPointerLowerBound( const container_type& ref ) : ref_( ref ){}
 
     void build_index(){}
 
     const_iterator find( const value_type& key )
     {
-        auto first = VcAlgo::lower_bound< const value_type*,
-                                  value_type,
-                                  TAG_T>( ref_.data(), ref_.data()+ref_.size(), key );
+        auto first = SimdTTM::lower_bound< const value_type*,
+                                  value_type >( ref_.data(), ref_.data()+ref_.size(), key );
 
         auto it = ref_.begin();
         std::advance( it, first - ref_.data() );
@@ -119,11 +117,11 @@ GET_NAME(uint64_t)
 GET_NAME(float)
 GET_NAME(double)
 
-template< class Cont_T, template < typename... > class Index_T, typename TAG_T >
+template< class Cont_T, template < typename... > class Index_T >
 uint64_t bench( const std::string& name, size_t size, size_t loop, bool verbose )
 {
 	using container_type = Cont_T;
-    using index_type = Index_T< container_type, TAG_T >;
+    using index_type = Index_T< container_type >;
     using value_type = typename container_type::value_type;
 
     boost::timer::cpu_timer timer;
@@ -202,32 +200,19 @@ public:
         {
             std::cout
                 << "size," << runSize << ",type," << getName<NUM_T>() << std::endl
-                << "std::lower_bound,VcAlgo::lower_bound SSE,VcAlgo::lower_bound AVX" << std::endl;
+                << "std::lower_bound,SimdTTM::lower_bound" << std::endl;
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-            uint64_t base = bench< avector< NUM_T >, StdLowerBound, void >( "std::lower_bound .......", runSize, inloop, verbose );
+            uint64_t base = bench< avector< NUM_T >, StdLowerBound >( "std::lower_bound ...", runSize, inloop, verbose );
 
-            uint64_t sse = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop, verbose );
-            uint64_t avx = bench< avector< NUM_T >, VcAlgoLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop, verbose );
+            uint64_t sse = bench< avector< NUM_T >, SimdTTMLowerBound >( "SimdTTM::lower_bound", runSize, inloop, verbose );
 
             if( verbose )
             {
-                uint64_t sse2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Sse >( "VcAlgo::lower_bound SSE ", runSize, inloop, verbose );
-                uint64_t avx2 = bench< avector< NUM_T >, VcAlgoPointerLowerBound, Vc::VectorAbi::Avx >( "VcAlgo::lower_bound AVX ", runSize, inloop, verbose );
-
                 std::cout
-                    << std::endl << "VcAlgo::lower_bound, " << getName<NUM_T>() << " Speed up SSE.: "
+                    << std::endl << "SimdTTM::lower_bound, " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, sse ) << "%"
-
-                    << std::endl << "VcAlgo::lower_bound, " << getName<NUM_T>() << " Speed up AVX.: "
-                    << std::fixed << std::setprecision(2) << percent( base, avx ) << "%"
-
-                    << std::endl << "VcAlgo::lower_bound, " << getName<NUM_T>() << " Speed up SSE2: "
-                    << std::fixed << std::setprecision(2) << percent( base, sse2 ) << "%"
-
-                    << std::endl << "VcAlgo::lower_bound, " << getName<NUM_T>() << " Speed up AVX2: "
-                    << std::fixed << std::setprecision(2) << percent( base, avx2 ) << "%"
 
                     << std::endl << std::endl;
             }
@@ -236,7 +221,6 @@ public:
                 std::cout
                     << base
                     << "," << sse
-                    << "," << avx
                     << std::endl;
             }
         }
@@ -249,7 +233,13 @@ int main(int argc, char* /*argv*/[])
     constexpr size_t loop = 5;
     bool verbose = (argc == 1);
 
-    benchLoop< int16_t, int32_t, float, double >()( verbose, runSize, loop,
-                                                    verbose? 1: 5 );
+#if defined(STTM_VC_ENABLED) // XXX Vc library bug on int8_t and int64_t
+    benchLoop< int16_t, int32_t, float, double > benchmark;
+#else
+    benchLoop< int8_t, int16_t, int32_t, int64_t, float, double > benchmark;
+#endif
+
+    benchmark( verbose, runSize, loop, verbose? 1: 5 );
+
     return 0;
 }

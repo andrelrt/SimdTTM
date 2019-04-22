@@ -1,7 +1,7 @@
 #include <VcAlgo/detail/btree.h>
 #include "gtest/gtest.h"
 
-void printRow( VcAlgo::detail::btree_row<int32_t, 16>& row, std::pair<bool, int32_t>& up )
+void printRow( SimdTTM::detail::btree_row<int32_t, 16>& row, std::pair<bool, int32_t>& up )
 {
     std::cout << std::hex << row;
     if( up.first )
@@ -11,37 +11,37 @@ void printRow( VcAlgo::detail::btree_row<int32_t, 16>& row, std::pair<bool, int3
     std::cout << std::endl << std::endl;
 }
 
-void printRow( VcAlgo::detail::btree_row<int32_t, 16>& row,
-               std::pair<VcAlgo::detail::RemoveMode, int32_t>& up )
+void printRow( SimdTTM::detail::btree_row<int32_t, 16>& row,
+               std::pair<SimdTTM::detail::RemoveMode, int32_t>& up )
 {
     std::cout << std::hex << row;
 
     switch( up.first )
     {
-        case VcAlgo::detail::RemoveMode::NotFound:
+        case SimdTTM::detail::RemoveMode::NotFound:
             std::cout << " - not found";
             break;
 
-        case VcAlgo::detail::RemoveMode::NodeOnly:
+        case SimdTTM::detail::RemoveMode::NodeOnly:
             break;
 
-        case VcAlgo::detail::RemoveMode::NodeOnlyLessThanMin:
+        case SimdTTM::detail::RemoveMode::NodeOnlyLessThanMin:
             std::cout << " - less than min (should be root)";
             break;
 
-        case VcAlgo::detail::RemoveMode::ShiftRight:
+        case SimdTTM::detail::RemoveMode::ShiftRight:
             std::cout << " - shift right, push up: " << up.second;
             break;
 
-        case VcAlgo::detail::RemoveMode::ShiftLeft:
+        case SimdTTM::detail::RemoveMode::ShiftLeft:
             std::cout << " - shift left, push up: " << up.second;
             break;
 
-        case VcAlgo::detail::RemoveMode::MergeRight:
+        case SimdTTM::detail::RemoveMode::MergeRight:
             std::cout << " - merge right";
             break;
 
-        case VcAlgo::detail::RemoveMode::MergeLeft:
+        case SimdTTM::detail::RemoveMode::MergeLeft:
             std::cout << " - merge left";
             break;
     }
@@ -56,7 +56,7 @@ void printBtree( T& btree )
 
 TEST(Btree, BigTest)
 {
-    VcAlgo::detail::btree<int32_t, 16> btree;
+    SimdTTM::detail::btree<int32_t, 16> btree;
     for( int32_t i = 0; i <= 0x10000; ++i )
     {
         btree.insert( i );
@@ -66,7 +66,7 @@ TEST(Btree, BigTest)
 
 TEST(Btree, EmptyTest)
 {
-    VcAlgo::detail::btree<int32_t, 16> btree;
+    SimdTTM::detail::btree<int32_t, 16> btree;
     {
     std::cout << "Inserting -------------------------------------------------------------------\n"
               << "-----------------------------------------------------------------------------" << std::endl;
@@ -157,7 +157,7 @@ TEST(Btree, EmptyTest)
 
 TEST(BtreeRow, EmptyTest)
 {
-    VcAlgo::detail::btree_row<int32_t, 16> row;
+    SimdTTM::detail::btree_row<int32_t, 16> row;
 
     {
     std::cout << "Inserting -------------------------------------------------------------------\n"

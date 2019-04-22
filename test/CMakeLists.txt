@@ -77,7 +77,6 @@ add_executable(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
     SYSTEM PRIVATE
     "${source_dir}/googletest/include"
-    ${Vc_INCLUDE_DIR}
 
 	PUBLIC
     ${CMAKE_SOURCE_DIR}/include
@@ -86,7 +85,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PRIVATE
     libgtest
     libgtest_main
-    ${Vc_LIBRARIES}
+    ${SIMD_LINK_LIBRARY}
 )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
