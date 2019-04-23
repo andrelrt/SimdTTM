@@ -54,6 +54,87 @@ enum class RemoveMode
 
 template< typename Type_T, // Value type
           size_t NODE_SIZE = 256,
+          typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
+class btree_node
+{
+public:
+    using value_type = Type_T;
+    using simd_type = simd::simd_type< value_type >;
+private:
+    static constexpr size_t node_size = NODE_SIZE;
+    static constexpr size_t byte_size = node_size * sizeof(value_type);
+    static constexpr size_t simd_size = node_size / simd::simd_size< value_type >();
+    static constexpr size_t node_middle = node_size / 2;
+    static constexpr size_t simd_size_mask = simd::simd_size< value_type >() -1;
+    using node_type = std::array<simd_type, simd_size>; // 256 bytes node
+public:
+
+    void insert( value_type val, uint16_t pos, uint16_t size )
+    {
+        value_type* ptr = as_ptr();
+        if( pos < size )
+        {
+            std::copy_backward( ptr + pos, ptr + size, ptr + size +1 );
+        }
+        ptr[pos] = val;
+    }
+
+    value_type split( btree_node& next, value_type val, uint16_t pos )
+    {
+        value_type* ptr = as_ptr();
+        value_type* nextptr = next.as_ptr();
+
+        value_type ret;
+        if( pos < node_middle )
+        {
+            std::copy( ptr + node_middle, ptr + node_size, nextptr );
+            ret = ptr[ node_middle -1 ];
+
+            insert( val, pos, node_middle );
+        }
+        else if( pos > node_middle )
+        {
+            std::copy( ptr + node_middle +1, ptr + node_size, nextptr );
+            ret = ptr[ node_middle ];
+
+            next.insert( val, pos - node_middle, node_middle -1 );
+        }
+        else // pos == node_middle
+        {
+            std::copy( ptr + node_middle, ptr + node_size, nextptr );
+            ret = val;
+        }
+        auto ev = empty_value;
+        std::fill( ptr + node_middle, ptr + node_size, ev );
+        return ret;
+    }
+
+    value_type back( uint16_t size ) const
+    {
+        return (*this)[ size -1 ];
+    }
+
+    value_type front() const
+    {
+        return (*this)[0];
+    }
+
+    value_type operator[]( size_t i ) const
+    {
+        return as_ptr()[i];
+    }
+
+private:
+    node_type node_;
+    value_type* as_ptr() const
+    {
+        return const_cast<value_type*>(reinterpret_cast<const value_type*>( node_.data() ));
+    }
+};
+
+
+template< typename Type_T, // Value type
+          size_t NODE_SIZE = 256,
           template <class...> class Alloc_T = simd::allocator,
           typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
 class btree_row

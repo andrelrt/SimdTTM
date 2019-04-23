@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.5)
 
 find_package(Vc 1.0)
 
-option(STTM_VC_LIBRARY_ENABLED "Use Vc library" ON)
+if(Vc_FOUND)
+    option(STTM_VC_LIBRARY_ENABLED "Use Vc library" ON)
+endif()
+
 if(Vc_FOUND AND STTM_VC_LIBRARY_ENABLED)
     message(STATUS "Using Vc libraries")
     set(SIMD_LINK_LIBRARY Vc::Vc)
