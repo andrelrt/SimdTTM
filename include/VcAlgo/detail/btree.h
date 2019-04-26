@@ -441,12 +441,13 @@ private:
     static constexpr size_t simd_size = node_size / simd::simd_size< value_type >();
     static constexpr size_t node_middle = node_size / 2;
     static constexpr size_t simd_size_mask = simd::simd_size< value_type >() -1;
+    static_assert( node_size % simd::simd_size< value_type >() == 0,
+                   "NODE_SIZE must be multiple of simd_size" );
 public:
     template<typename Val_T> using allocator_template = Alloc_T<Val_T>;
     using node_type = std::array<simd_type, simd_size>; // 256 bytes node
     using row_type = btree_row< value_type, node_size, allocator_template >;
     using btree_type = std::vector< row_type, allocator_template< row_type > >;
-
 
     btree() : data_(1)
     {
