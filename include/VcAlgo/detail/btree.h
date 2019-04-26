@@ -90,8 +90,9 @@ public:
     {
         value_type* ptr = as_ptr();
         value_type ret = ptr[ pos ];
-        std::copy( ptr + pos + 1, ptr + size, ptr + pos );
-        ptr[ size ] = empty_value;
+        if( pos < size )
+            std::copy( ptr + pos + 1, ptr + size, ptr + pos );
+        ptr[ size-1 ] = empty_value;
         return ret;
     }
 
@@ -113,7 +114,7 @@ public:
             std::copy( ptr + node_middle +1, ptr + node_size, nextptr );
             ret = ptr[ node_middle ];
 
-            next.insert( val, pos - node_middle, node_middle -1 );
+            next.insert( val, pos - node_middle -1, node_middle -1 );
         }
         else // pos == node_middle
         {
@@ -200,7 +201,6 @@ private:
     static constexpr size_t simd_size_mask = simd::simd_size< value_type >() -1;
 public:
     template<typename Val_T> using allocator_template = Alloc_T<Val_T>;
-//    using node_type = std::array<simd_type, simd_size>; // 256 bytes node
     using node_type = btree_node< value_type, node_size >;
     using row_type = std::vector<node_type, allocator_template<node_type>>;
 
@@ -227,13 +227,6 @@ public:
             // Insert an item on a node
             int32_t pos = row_[node].upper_bound( val );
             row_[node].insert( val, pos, node_sizes_[node] );
-//            value_type* ptr = const_cast<value_type*>(
-//                              reinterpret_cast<const value_type*>( row_[node].data() ));
-//            if( pos < node_sizes_[node] )
-//            {
-//                std::copy_backward( ptr + pos, ptr + node_sizes_[node], ptr + node_sizes_[node] +1 );
-//            }
-//            ptr[pos] = val;
             ++node_sizes_[node];
             return std::make_pair( false, value_type(0) );
         }
@@ -251,8 +244,6 @@ public:
 
         // Find element on node
         int32_t pos = row_[node].upper_bound( val ) -1;
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ));
         std::cout << pos << ":"
                   << node_sizes_[node] << ":"
                   << node << ":"
@@ -268,8 +259,6 @@ public:
             // Just remove from node
             row_[node].remove( pos, node_sizes_[node] );
             --node_sizes_[node];
-//            std::copy( ptr + pos +1, ptr + node_sizes_[node], ptr + pos );
-//            ptr[ node_sizes_[node] ] = empty_value;
             if( node_sizes_[node] >= node_middle )
                 return std::make_pair( RemoveMode::NodeOnly, value_type(0) );
             else
@@ -306,10 +295,6 @@ public:
         range_check( extnode );
         size_t node = translateNode( extnode ).first;
         int32_t pos = row_[node].upper_bound( val );
-
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ));
-
         return std::make_pair( pos, pos != 0 && row_[node][pos-1] == val );
     }
 
@@ -348,32 +333,6 @@ private:
 
         int32_t pos = row_[node].upper_bound( val );
         value_type ret = row_[node].split( row_[next], val, pos );
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ));
-//        value_type* nextptr = const_cast<value_type*>(
-//                              reinterpret_cast<const value_type*>( row_[next].data() ));
-//
-//        if( pos > node_middle )
-//        {
-//            ret = ptr[node_middle];
-//            std::copy( ptr + node_middle + 1, ptr + pos, nextptr );
-//            std::copy( ptr + pos, ptr + node_size, nextptr + pos - node_middle );
-//            nextptr[ pos - node_middle -1 ] = val;
-//        }
-//        else if( pos < node_middle )
-//        {
-//            ret = ptr[ node_middle-1 ];
-//            std::copy( ptr + node_middle, ptr + node_size, nextptr );
-//            std::copy_backward( ptr + pos, ptr + node_middle -1, ptr + node_middle );
-//            ptr[ pos ] = val;
-//        }
-//        else // pos == node_middle
-//        {
-//            ret = val;
-//            std::copy( ptr + node_middle, ptr + node_size, nextptr );
-//        }
-//        auto ev = empty_value;
-//        std::fill( ptr + node_middle, ptr + node_size, ev );
         node_sizes_[node] = node_middle;
         node_sizes_[next] = node_middle;
         return ret;
@@ -383,18 +342,10 @@ private:
     {
         row_[node].remove( pos, node_sizes_[node] );
         row_[node].insert( root, node_sizes_[node]-1, node_sizes_[node] );
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ) );
-//        std::copy( ptr + pos +1, ptr + node_sizes_[node], ptr + pos );
-//        ptr[ node_sizes_[node]-1 ] = root;
 
         size_t next = node_map_[node];
-        value_type ret = row_[next].remove( 0, node_sizes_[node] );
-//        ptr = const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[next].data() ) );
-//        value_type ret = ptr[0];
-//        std::copy( ptr + 1, ptr + node_sizes_[next], ptr );
+        value_type ret = row_[next].remove( 0, node_sizes_[next] );
         --node_sizes_[next];
-//        ptr[ node_sizes_[next] ] = empty_value;
         return ret;
     }
 
@@ -402,16 +353,9 @@ private:
     {
         row_[node].remove( pos, node_sizes_[node] );
         row_[node].insert( root, 0, node_sizes_[node] );
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ) );
-//        std::copy_backward( ptr, ptr + pos, ptr + pos +1 );
-//        ptr[ 0 ] = root;
 
         value_type ret = row_[prev].remove( node_sizes_[prev] -1, node_sizes_[prev] );
-        //ptr = const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[prev].data() ) );
         --node_sizes_[prev];
-        //value_type ret = ptr[ node_sizes_[prev] ];
-        //ptr[ node_sizes_[prev] ] = empty_value;
         return ret;
     }
 
@@ -421,19 +365,6 @@ private:
 
         row_[node].remove( pos, node_sizes_[node] );
         row_[node].merge( row_[next], root, node_sizes_[node] -1, node_sizes_[next] );
-
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ) );
-//        std::copy( ptr + pos +1, ptr + node_sizes_[node], ptr + pos );
-//
-//        size_t next = node_map_[node];
-//        value_type* nextptr =
-//            const_cast<value_type*>( reinterpret_cast<const value_type*>( row_[next].data() ) );
-//
-//        ptr[ node_sizes_[node] -1 ] = root;
-//        std::copy( nextptr, nextptr + node_sizes_[next], ptr + node_sizes_[node] );
-//        auto ev = empty_value;
-//        std::fill( nextptr, nextptr + node_sizes_[next], ev );
 
         node_sizes_[node] += node_sizes_[next];
         node_map_[node] = node_map_[next];
@@ -446,17 +377,6 @@ private:
     {
         row_[node].remove( pos, node_sizes_[node] );
         row_[prev].merge( row_[node], root, node_sizes_[prev], node_sizes_[node] -1 );
-//        value_type* ptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[node].data() ) );
-//        value_type* prevptr = const_cast<value_type*>(
-//                          reinterpret_cast<const value_type*>( row_[prev].data() ) );
-//
-//        prevptr[ node_sizes_[prev] ] = root;
-//        std::copy( ptr, ptr + pos, prevptr + node_sizes_[prev] + 1);
-//        std::copy( ptr + pos + 1, ptr + node_sizes_[node], prevptr + node_sizes_[prev] + pos +1 );
-//
-//        auto ev = empty_value;
-//        std::fill( ptr, ptr + node_sizes_[node], ev );
 
         node_sizes_[prev] += node_sizes_[node];
         node_map_[prev] = node_map_[node];
@@ -504,23 +424,6 @@ private:
         node_map_.push_back( val );
         return node_map_.size() -1;
     }
-
-//    int32_t upper_bound_node( node_type& node, value_type val )
-//    {
-//        int32_t pos = 0;
-//        int32_t cur = 0;
-//        simd_type simdVal(val);
-//
-//        size_t idx = 0;
-//        do
-//        {
-//            cur = simd::greater_than( node[idx], simdVal );
-//            pos += cur;
-//            ++idx;
-//
-//        } while( cur == simd_type::size() && idx < node.size() );
-//        return pos;
-//    }
 };
 
 template< typename Type_T, // Value type
@@ -623,23 +526,9 @@ std::ostream& operator<<( std::ostream& out, const SimdTTM::detail::btree_row< T
         else
         {
             out << " - ";
-//            first = true;
         }
         out << "(" << i << "->" << row.node_map_[i] << ":" << row.node_sizes_[i] << ")";
         out << node;
-
-//        for( auto&& vec : node )
-//        {
-//            if( first )
-//            {
-//                first = false;
-//            }
-//            else
-//            {
-//                out << ",";
-//            }
-//            out << vec;
-//        }
         ++i;
     }
     out << "}";

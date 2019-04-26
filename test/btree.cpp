@@ -255,9 +255,9 @@ TEST(BtreeRow, EmptyTest)
     up = row.remove( 2, 512 + 15, 0, 0 ); printRow( row, up );
     up = row.remove( 1, 256 + 15, 0, 0 ); printRow( row, up );
 
-    up = row.remove( 3, 1024 + 13, 0, 0 ); printRow( row, up );
-    up = row.remove( 2, 768 + 13, 0, 0 ); printRow( row, up );
-    up = row.remove( 1, 512 + 13, 0, 0 ); printRow( row, up );
+    up = row.remove( 4, 1024 + 13, 0, 0 ); printRow( row, up );
+    up = row.remove( 3, 768 + 13, 0, 0 ); printRow( row, up );
+    up = row.remove( 2, 512 + 13, 0, 0 ); printRow( row, up );
     up = row.remove( 0, 256 + 13, 0, 0 ); printRow( row, up );
 
     up = row.remove( 3, 1024 + 11, 0, 0 ); printRow( row, up );
