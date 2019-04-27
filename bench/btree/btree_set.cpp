@@ -24,84 +24,12 @@
 #include <iomanip>
 #include <algorithm>
 #include <numeric>
-#include <array>
+#include <set>
 #include <vector>
 #include <boost/timer/timer.hpp>
 #include <boost/align/aligned_allocator.hpp> 
 
 #include <SimdTTM/algorithm.h>
-
-template< typename Val_T >
-using avector = std::vector< Val_T, boost::alignment::aligned_allocator<Val_T> >;
-
-template< class Cont_T >
-struct StdLowerBound
-{
-	using container_type = Cont_T;
-    using value_type     = typename container_type::value_type;
-    using const_iterator = typename container_type::const_iterator;
-
-    StdLowerBound( const container_type& ref ) : ref_( ref ){}
-
-    void build_index(){}
-
-    const_iterator find( const value_type& key )
-    {
-        auto first = std::lower_bound( ref_.begin(), ref_.end(), key );
-        return (first!=ref_.end() && !(key<*first)) ? first : ref_.end();
-    }
-private:
-    const container_type& ref_;
-};
-
-template< class Cont_T >
-struct SimdTTMLowerBound
-{
-	using container_type = Cont_T;
-    using value_type     = typename container_type::value_type;
-    using const_iterator = typename container_type::const_iterator;
-
-    explicit SimdTTMLowerBound( const container_type& ref ) : ref_( ref ){}
-
-    void build_index(){}
-
-    const_iterator find( const value_type& key )
-    {
-        auto first = SimdTTM::lower_bound< const_iterator,
-                                  value_type >( ref_.begin(), ref_.end(), key );
-
-        return (first!=ref_.end() && !(key<*first)) ? first : ref_.end();
-    }
-private:
-    const container_type& ref_;
-};
-
-template< class Cont_T >
-struct SimdTTMPointerLowerBound
-{
-	using container_type = Cont_T;
-    using value_type     = typename container_type::value_type;
-    using const_iterator = typename container_type::const_iterator;
-
-    explicit SimdTTMPointerLowerBound( const container_type& ref ) : ref_( ref ){}
-
-    void build_index(){}
-
-    const_iterator find( const value_type& key )
-    {
-        auto first = SimdTTM::lower_bound< const value_type*,
-                                  value_type >( ref_.data(), ref_.data()+ref_.size(), key );
-
-        auto it = ref_.begin();
-        std::advance( it, first - ref_.data() );
-
-        return (it!=ref_.end() && !(key<*it)) ? it : ref_.end();
-    }
-private:
-    const container_type& ref_;
-};
-
-void do_nothing( int32_t );
 
 template< typename TYPE_T > const char* getName() { return ""; }
 #define GET_NAME(X) template<> const char* getName<X>(){ return #X; }
@@ -117,52 +45,27 @@ GET_NAME(uint64_t)
 GET_NAME(float)
 GET_NAME(double)
 
-template< class Cont_T, template < typename... > class Index_T >
+template< class Cont_T >
 uint64_t bench( const std::string& name, size_t size, size_t loop, bool verbose )
 {
 	using container_type = Cont_T;
-    using index_type = Index_T< container_type >;
     using value_type = typename container_type::value_type;
 
     boost::timer::cpu_timer timer;
-    container_type org;
 
+    std::vector< value_type > randData;
     srand( 1 );
-    std::generate_n( std::back_inserter(org), size, &rand );
-    container_type sorted( org );
-    std::sort( sorted.begin(), sorted.end() );
-    index_type index( sorted );
+    std::generate_n( std::back_inserter(randData), size, &rand );
 
-    index.build_index();
+    container_type testSet;
 
     timer.start();
-    for( size_t j = 0; j < loop; ++j )
-    {
-//        size_t cnt = 0;
-        for( auto i : org )
-        {
-            auto ret = index.find( i );
-            do_nothing( *ret );
-
-//            // Test if the retun value is correct
-//            if( ret == sorted.end() )
-//            {
-//                std::cout << "end: 0x" << std::hex << i << ", i: 0x" << cnt << std::endl;
-//                break;
-//            }
-//            else
-//            {
-//                if( *ret != i )
-//                {
-//                    std::cout << *ret << "," << i << "-";
-//                }
-//            }
-//            ++cnt;
-        }
-    }
+    for( value_type val : randData )
+        testSet.insert( val );
     timer.stop();
+
     if( verbose )
-        std::cout << "Find all " << getName<value_type>() << " " << name << ": " << timer.format();
+        std::cout << "Insert all " << getName<value_type>() << " " << name << ": " << timer.format();
 
     return timer.elapsed().wall;
 }
@@ -200,19 +103,35 @@ public:
         {
             std::cout
                 << "size," << runSize << ",type," << getName<NUM_T>() << std::endl
-                << "std::lower_bound,SimdTTM::lower_bound" << std::endl;
+                << "std::set,SimdTTM::btree" << std::endl;
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-            uint64_t base = bench< avector< NUM_T >, StdLowerBound >( "std::lower_bound ...", runSize, inloop, verbose );
+            uint64_t base = bench< std::set< NUM_T > >( "std::set ............", runSize, inloop, verbose );
 
-            uint64_t sse = bench< avector< NUM_T >, SimdTTMLowerBound >( "SimdTTM::lower_bound", runSize, inloop, verbose );
+            uint64_t btree128 = bench< SimdTTM::btree< NUM_T, 128 > >( "SimdTTM::btree< 128 >", runSize, inloop, verbose );
+            uint64_t btree256 = bench< SimdTTM::btree< NUM_T, 256 > >( "SimdTTM::btree< 256 >", runSize, inloop, verbose );
+            uint64_t btree512 = bench< SimdTTM::btree< NUM_T, 512 > >( "SimdTTM::btree< 512 >", runSize, inloop, verbose );
+            uint64_t btree1024 = bench< SimdTTM::btree< NUM_T, 1024 > >( "SimdTTM::btree< 1024 >", runSize, inloop, verbose );
+            uint64_t btree2048 = bench< SimdTTM::btree< NUM_T, 2048 > >( "SimdTTM::btree< 2048 >", runSize, inloop, verbose );
 
             if( verbose )
             {
                 std::cout
-                    << std::endl << "SimdTTM::lower_bound, " << getName<NUM_T>() << " Speed up: "
-                    << std::fixed << std::setprecision(2) << percent( base, sse ) << "%"
+                    << std::endl << "SimdTTM::btree<128>, " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, btree128 ) << "%"
+
+                    << std::endl << "SimdTTM::btree<256>, " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, btree256 ) << "%"
+
+                    << std::endl << "SimdTTM::btree<512>, " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, btree512 ) << "%"
+
+                    << std::endl << "SimdTTM::btree<1024>, " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, btree1024 ) << "%"
+
+                    << std::endl << "SimdTTM::btree<2048>, " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, btree2048 ) << "%"
 
                     << std::endl << std::endl;
             }
@@ -220,7 +139,7 @@ public:
             {
                 std::cout
                     << base
-                    << "," << sse
+                    << "," << btree128
                     << std::endl;
             }
         }

@@ -36,7 +36,7 @@
 #include <utility>
 #include <vector>
 
-#include <VcAlgo/detail/simd/compatibility.h>
+#include <SimdTTM/detail/simd/compatibility.h>
 
 namespace SimdTTM {
 namespace detail {
@@ -52,8 +52,8 @@ enum class RemoveMode
     MergeLeft
 };
 
-template< typename Type_T, // Value type
-          size_t NODE_SIZE = 256,
+template< typename Type_T,        // Value type
+          size_t NODE_SIZE = 256, // Node with 256 value_types
           typename std::enable_if< std::is_arithmetic< Type_T >::value >::type* = nullptr >
 class btree_node
 {
@@ -66,7 +66,7 @@ private:
     static constexpr size_t simd_size = node_size / simd::simd_size< value_type >();
     static constexpr size_t node_middle = node_size / 2;
     static constexpr size_t simd_size_mask = simd::simd_size< value_type >() -1;
-    using node_type = std::array<simd_type, simd_size>; // 256 bytes node
+    using node_type = std::array<simd_type, simd_size>;
 public:
 
     btree_node()
@@ -231,7 +231,11 @@ public:
             return std::make_pair( false, value_type(0) );
         }
 
-        return std::make_pair( true, split_insert_node( node, val ) );
+        value_type ret = split_insert_node( node, val );
+
+        fill_translation_map( extnode );
+
+        return std::make_pair( true, ret );
     }
 
     std::pair<RemoveMode, value_type> remove( size_t extnode, value_type val,
@@ -253,8 +257,10 @@ public:
         if( pos == -1 || row_[node][pos] != val )
             return std::make_pair( RemoveMode::NotFound, value_type(0) );
 
+        size_t next = node_list_[node];
+
         if( node_sizes_[node] > node_middle ||
-            (node_list_[node] == list_end && node == 0) )
+            (next == list_end && node == 0) )
         {
             // Just remove from node
             row_[node].remove( pos, node_sizes_[node] );
@@ -266,8 +272,8 @@ public:
         }
 
         // Try shifts, right and left
-        if( node_list_[node] != list_end &&
-            node_sizes_[ node_list_[node] ] > node_middle )
+        if( next != list_end &&
+            node_sizes_[ next ] > node_middle )
         {
             return std::make_pair( RemoveMode::ShiftRight,
                                    removeShiftRight( node, pos, rightRoot ) );
@@ -281,12 +287,14 @@ public:
         }
 
         // The last effort is merge right and left
-        if( node_list_[node] != list_end )
+        if( next != list_end )
         {
             removeMergeRight( node, pos, rightRoot );
+            fill_translation_map( extnode );
             return std::make_pair( RemoveMode::MergeRight, value_type(0) );
         }
         removeMergeLeft( node, prev, pos, leftRoot );
+        fill_translation_map( extnode -1 );
         return std::make_pair( RemoveMode::MergeLeft, value_type(0) );
     }
 
@@ -387,23 +395,27 @@ private:
 
     std::pair<size_t, size_t> translateNode( size_t extnode )
     {
-        if( extnode < last_ordered_node_ )
-            return std::make_pair( extnode, extnode -1 );
-
-        uint16_t ret = 0;
-        uint16_t prev = 0;
-        size_t cur = extnode;
-        while( cur != 0 )
-        {
-            prev = ret;
-            ret = node_list_[ ret ];
-            if( ret == prev + 1 )
-            {
-                last_ordered_node_ = ret;
-            }
-            --cur;
-        }
-        return std::make_pair( ret, prev );
+        if( extnode == 0 )
+            return std::make_pair( 0, 0 );
+        return std::make_pair( translation_map_[ extnode ], translation_map_[ extnode-1 ] );
+//
+//        if( extnode < last_ordered_node_ )
+//            return std::make_pair( extnode, extnode -1 );
+//
+//        uint16_t ret = 0;
+//        uint16_t prev = 0;
+//        size_t cur = extnode;
+//        while( cur != 0 )
+//        {
+//            prev = ret;
+//            ret = node_list_[ ret ];
+//            if( ret == prev + 1 )
+//            {
+//                last_ordered_node_ = ret;
+//            }
+//            --cur;
+//        }
+//        return std::make_pair( ret, prev );
     }
 
     void range_check( size_t node )
@@ -422,7 +434,21 @@ private:
         node_sizes_.push_back( 0 );
         uint16_t val = list_end; // XXX Some weird bug on push_back and constexpr
         node_list_.push_back( val );
+        translation_map_.push_back( 0 );
         return node_list_.size() -1;
+    }
+
+    void fill_translation_map( uint16_t extnode )
+    {
+        uint16_t node = translation_map_[ extnode ];
+        do
+        {
+            translation_map_[ extnode ] = node;
+            node = node_list_[ node ];
+
+            ++extnode;
+
+        } while( node != list_end );
     }
 };
 
@@ -725,7 +751,7 @@ std::ostream& operator<<( std::ostream& out, const SimdTTM::detail::btree< Type_
 
 } // namespace SimdTTM::detail
 
-//using detail::lower_bound;
+using detail::btree;
 
 } // namespace SimdTTM
 

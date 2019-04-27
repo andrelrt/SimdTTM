@@ -26,7 +26,7 @@
 #include <type_traits>
 #include <iterator>
 
-#include <VcAlgo/detail/simd/compatibility.h>
+#include <SimdTTM/detail/simd/compatibility.h>
 
 namespace SimdTTM {
 namespace detail {

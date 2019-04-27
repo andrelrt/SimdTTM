@@ -1,5 +1,6 @@
-#include <VcAlgo/detail/btree.h>
 #include "gtest/gtest.h"
+
+#include <SimdTTM/detail/btree.h>
 
 void printRow( SimdTTM::detail::btree_row<int32_t, 16>& row, std::pair<bool, int32_t>& up )
 {

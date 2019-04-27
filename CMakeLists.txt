@@ -1,4 +1,4 @@
-project(VcAlgo)
+project(SimdTTM)
 cmake_minimum_required(VERSION 3.5)
 
 find_package(Vc 1.0)

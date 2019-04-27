@@ -22,16 +22,5 @@
 
 #pragma once
 
-#include <Vc/Vc>
-
-namespace VcAlgo {
-namespace detail {
-
-template< typename Vector_T, typename Val_T >
-static inline int VcGreaterThan( const Vector_T vec, const Val_T val )
-{
-    auto mask = (vec > val);
-    return Vc::none_of(mask) ? Vector_T::size() : mask.firstOne();
-}
-
-}} // namespace VcAlgo::detail
+#include <SimdTTM/detail/btree.h>
+#include <SimdTTM/detail/lower_bound.h>
