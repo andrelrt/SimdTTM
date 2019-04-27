@@ -214,7 +214,7 @@ public:
 
     bool isRoot() const
     {
-        return node_map_[0] == map_end;
+        return node_list_[0] == list_end;
     }
 
     std::pair<bool, value_type> insert( size_t extnode, value_type val )
@@ -254,7 +254,7 @@ public:
             return std::make_pair( RemoveMode::NotFound, value_type(0) );
 
         if( node_sizes_[node] > node_middle ||
-            (node_map_[node] == map_end && node == 0) )
+            (node_list_[node] == list_end && node == 0) )
         {
             // Just remove from node
             row_[node].remove( pos, node_sizes_[node] );
@@ -266,8 +266,8 @@ public:
         }
 
         // Try shifts, right and left
-        if( node_map_[node] != map_end &&
-            node_sizes_[ node_map_[node] ] > node_middle )
+        if( node_list_[node] != list_end &&
+            node_sizes_[ node_list_[node] ] > node_middle )
         {
             return std::make_pair( RemoveMode::ShiftRight,
                                    removeShiftRight( node, pos, rightRoot ) );
@@ -281,7 +281,7 @@ public:
         }
 
         // The last effort is merge right and left
-        if( node_map_[node] != map_end )
+        if( node_list_[node] != list_end )
         {
             removeMergeRight( node, pos, rightRoot );
             return std::make_pair( RemoveMode::MergeRight, value_type(0) );
@@ -308,28 +308,28 @@ public:
             sum += node_sizes_[i];
 
         return sum;
-        //return std::accumulate( node_sizes_.begin(), node_sizes_.begin() + node, size_t(0) );
     }
 
 private:
     row_type row_;
-    std::vector<uint16_t> node_map_;
+    std::vector<uint16_t> node_list_;
     std::vector<uint16_t> node_sizes_;
+    std::vector<uint16_t> translation_map_;
     size_t last_ordered_node_;
     bool isLeaf_;
 
     template<typename T, size_t s>
     friend std::ostream& operator<<( std::ostream&, const btree_row<T,s>& );
 
-    static constexpr uint16_t map_end = std::numeric_limits< uint16_t >::max();
+    static constexpr uint16_t list_end = std::numeric_limits< uint16_t >::max();
     static constexpr value_type empty_value = std::numeric_limits< value_type >::max();
 
     value_type split_insert_node( size_t node, value_type val )
     {
         // Split the node and strip the middle item
         size_t next = add_node();
-        node_map_[next] = node_map_[node];
-        node_map_[node] = next;
+        node_list_[next] = node_list_[node];
+        node_list_[node] = next;
 
         int32_t pos = row_[node].upper_bound( val );
         value_type ret = row_[node].split( row_[next], val, pos );
@@ -343,7 +343,7 @@ private:
         row_[node].remove( pos, node_sizes_[node] );
         row_[node].insert( root, node_sizes_[node]-1, node_sizes_[node] );
 
-        size_t next = node_map_[node];
+        size_t next = node_list_[node];
         value_type ret = row_[next].remove( 0, node_sizes_[next] );
         --node_sizes_[next];
         return ret;
@@ -361,14 +361,14 @@ private:
 
     void removeMergeRight( size_t node, int32_t pos, value_type root )
     {
-        size_t next = node_map_[node];
+        size_t next = node_list_[node];
 
         row_[node].remove( pos, node_sizes_[node] );
         row_[node].merge( row_[next], root, node_sizes_[node] -1, node_sizes_[next] );
 
         node_sizes_[node] += node_sizes_[next];
-        node_map_[node] = node_map_[next];
-        node_map_[next] = map_end;
+        node_list_[node] = node_list_[next];
+        node_list_[next] = list_end;
         // XXX may introduce some block fragmentation here.
         //     possible solution: move last block to the empty space created here.
     }
@@ -379,8 +379,8 @@ private:
         row_[prev].merge( row_[node], root, node_sizes_[prev], node_sizes_[node] -1 );
 
         node_sizes_[prev] += node_sizes_[node];
-        node_map_[prev] = node_map_[node];
-        node_map_[node] = map_end;
+        node_list_[prev] = node_list_[node];
+        node_list_[node] = list_end;
         // XXX may introduce some block fragmentation here.
         //     possible solution: move last block to the empty space created here.
     }
@@ -396,7 +396,7 @@ private:
         while( cur != 0 )
         {
             prev = ret;
-            ret = node_map_[ ret ];
+            ret = node_list_[ ret ];
             if( ret == prev + 1 )
             {
                 last_ordered_node_ = ret;
@@ -420,9 +420,9 @@ private:
     {
         row_.push_back( node_type() );
         node_sizes_.push_back( 0 );
-        uint16_t val = map_end; // XXX Some weird bug on push_back
-        node_map_.push_back( val );
-        return node_map_.size() -1;
+        uint16_t val = list_end; // XXX Some weird bug on push_back and constexpr
+        node_list_.push_back( val );
+        return node_list_.size() -1;
     }
 };
 
@@ -454,25 +454,18 @@ public:
         data_.front().setLeaf( true );
     }
 
+    // TODO Should return iterator
     void insert( value_type val )
     {
         assert( data_.back().isRoot() );
 
+        bool found;
         std::vector< size_t > nodes;
-        nodes.reserve( data_.size() );
+        std::tie( found, nodes ) = find_node( val );
 
-        size_t curNode = 0;
-        for( auto it = data_.rbegin(); it != data_.rend(); ++it )
-        {
-            auto next = it->upper_bound( curNode, val );
-            // same value is not inserted twice
-            if( next.second )
-                return;
-
-            nodes.push_back( curNode );
-            size_t before = it->countBeforeNode( curNode );
-            curNode = before + next.first;
-        }
+        // same value is not inserted twice
+        if( found )
+            return;
 
         std::pair<bool, value_type> ins = std::make_pair( false, val );
         for( auto& row : data_ )
@@ -487,11 +480,49 @@ public:
         data_.back().insert( 0, ins.second );
     }
 
+    // TODO Should return iterator
+    void erase( value_type val )
+    {
+        assert( data_.back().isRoot() );
+
+        bool found;
+        std::vector< size_t > nodes;
+        std::tie( found, nodes ) = find_nodes( val );
+
+        if( !found )
+            return;
+    }
+
 private:
     btree_type data_;
 
     template<typename T, size_t s>
     friend std::ostream& operator<<( std::ostream&, const btree<T,s>& );
+
+    std::pair<bool, std::vector< size_t >>
+    find_node( value_type val )
+    {
+        std::vector< size_t > nodes;
+        nodes.reserve( data_.size() );
+
+        size_t curNode = 0;
+        for( size_t i = data_.size()-1; i > 0; --i )
+        {
+            nodes.push_back( curNode );
+            auto next = data_[i].upper_bound( curNode, val );
+            if( next.second )
+                return std::make_pair( true, nodes );
+
+            size_t before = data_[i].countBeforeNode( curNode );
+            curNode = before + next.first;
+        }
+        nodes.push_back( curNode );
+        auto next = data_[0].upper_bound( curNode, val );
+        if( next.second )
+            return std::make_pair( true, nodes );
+
+        return std::make_pair( false, nodes );
+    }
 };
 
 template<typename T, size_t s>
@@ -528,7 +559,7 @@ std::ostream& operator<<( std::ostream& out, const SimdTTM::detail::btree_row< T
         {
             out << " - ";
         }
-        out << "(" << i << "->" << row.node_map_[i] << ":" << row.node_sizes_[i] << ")";
+        out << "(" << i << "->" << row.node_list_[i] << ":" << row.node_sizes_[i] << ")";
         out << node;
         ++i;
     }
