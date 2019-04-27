@@ -29,6 +29,7 @@
 #include <boost/timer/timer.hpp>
 #include <boost/align/aligned_allocator.hpp> 
 
+#include <btree/btree_set.h>
 #include <SimdTTM/algorithm.h>
 
 template< typename TYPE_T > const char* getName() { return ""; }
@@ -108,6 +109,7 @@ public:
         for( size_t i = 0; i < outloop; ++i )
         {
             uint64_t base = bench< std::set< NUM_T > >( "std::set ............", runSize, inloop, verbose );
+            uint64_t cppbtree = bench< btree::btree_set< NUM_T > >( "btree::btree_set ....", runSize, inloop, verbose );
 
             uint64_t btree128 = bench< SimdTTM::btree< NUM_T, 128 > >( "SimdTTM::btree< 128 >", runSize, inloop, verbose );
             uint64_t btree256 = bench< SimdTTM::btree< NUM_T, 256 > >( "SimdTTM::btree< 256 >", runSize, inloop, verbose );
@@ -118,6 +120,9 @@ public:
             if( verbose )
             {
                 std::cout
+                    << std::endl << "btree::btree_set, " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, cppbtree ) << "%"
+
                     << std::endl << "SimdTTM::btree<128>, " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, btree128 ) << "%"
 
