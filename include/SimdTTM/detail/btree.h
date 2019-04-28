@@ -68,7 +68,7 @@ public:
     void insert( value_type val, uint16_t pos, uint16_t size )
     {
         value_type* ptr = as_ptr();
-        if( pos < size )
+        if( pos < size -1 )
         {
             std::copy_backward( ptr + pos, ptr + size, ptr + size +1 );
         }
@@ -79,7 +79,7 @@ public:
     {
         value_type* ptr = as_ptr();
         value_type ret = ptr[ pos ];
-        if( pos < size )
+        if( pos < size -1 )
             std::copy( ptr + pos + 1, ptr + size, ptr + pos );
         ptr[ size-1 ] = empty_value;
         return ret;
@@ -374,8 +374,8 @@ private:
     value_type insert_shift_left( size_t node, size_t prev, int32_t pos, value_type val, value_type root )
     {
         value_type ret = row_[node].remove( 0, node_sizes_[node] );
-        row_[node].insert( val, std::max(0, pos-1), node_sizes_[node] );
-        row_[prev].insert( root, node_sizes_[prev]-1, node_sizes_[prev] );
+        row_[node].insert( val, std::max(0, pos-1), node_sizes_[node] -1 );
+        row_[prev].insert( root, node_sizes_[prev], node_sizes_[prev] );
         ++node_sizes_[prev];
         return ret;
     }
@@ -383,7 +383,7 @@ private:
     value_type insert_shift_right( size_t node, int32_t pos, value_type val, value_type root )
     {
         value_type ret = row_[node].remove( node_sizes_[node] -1, node_sizes_[node] );
-        row_[node].insert( val, pos, node_sizes_[node] );
+        row_[node].insert( val, pos, node_sizes_[node] -1 );
 
         size_t next = node_list_[node];
         row_[next].insert( root, 0, node_sizes_[next] );
@@ -408,7 +408,7 @@ private:
     value_type remove_shift_right( size_t node, int32_t pos, value_type root )
     {
         row_[node].remove( pos, node_sizes_[node] );
-        row_[node].insert( root, node_sizes_[node]-1, node_sizes_[node] );
+        row_[node].insert( root, node_sizes_[node]-1, node_sizes_[node] -1 );
 
         size_t next = node_list_[node];
         value_type ret = row_[next].remove( 0, node_sizes_[next] );
@@ -419,7 +419,7 @@ private:
     value_type remove_shift_left( size_t node, size_t prev, int32_t pos, value_type root )
     {
         row_[node].remove( pos, node_sizes_[node] );
-        row_[node].insert( root, 0, node_sizes_[node] );
+        row_[node].insert( root, 0, node_sizes_[node] -1 );
 
         value_type ret = row_[prev].remove( node_sizes_[prev] -1, node_sizes_[prev] );
         --node_sizes_[prev];
@@ -540,8 +540,8 @@ public:
             auto& row = data_[i];
             auto& parentRow = data_[i+1];
 
-            value_type& leftRoot = parentRow.get( nodes.back().first, nodes.back().second );
-            value_type& rightRoot = parentRow.get( nodes.back().first, nodes.back().second -1 );
+            value_type& leftRoot = parentRow.get( prevNode.first, std::max( 1ul, prevNode.second ) -1 );
+            value_type& rightRoot = parentRow.get( prevNode.first, prevNode.second );
 
             ins = row.insert( true, nodes.back().first, ins.second, leftRoot, rightRoot );
             switch( ins.first )
