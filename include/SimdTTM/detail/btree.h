@@ -540,6 +540,7 @@ public:
             auto& row = data_[i];
             auto& parentRow = data_[i+1];
 
+            auto& prevNode = nodes[ nodes.size() -2 ];
             value_type& leftRoot = parentRow.get( prevNode.first, std::max( 1ul, prevNode.second ) -1 );
             value_type& rightRoot = parentRow.get( prevNode.first, prevNode.second );
 
