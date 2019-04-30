@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <numeric>
 #include <set>
+#include <unordered_set>
 #include <vector>
 #include <boost/timer/timer.hpp>
 #include <boost/align/aligned_allocator.hpp> 
@@ -109,6 +110,7 @@ public:
         for( size_t i = 0; i < outloop; ++i )
         {
             uint64_t base = bench< std::set< NUM_T > >( "std::set ............", runSize, inloop, verbose );
+            uint64_t uset = bench< std::unordered_set< NUM_T > >( "std::unordered_set ..", runSize, inloop, verbose );
             uint64_t cppbtree = bench< btree::btree_set< NUM_T > >( "btree::btree_set ....", runSize, inloop, verbose );
 
             uint64_t btree128 = bench< SimdTTM::btree< NUM_T, 128 > >( "SimdTTM::btree< 128 >", runSize, inloop, verbose );
@@ -120,6 +122,9 @@ public:
             if( verbose )
             {
                 std::cout
+                    << std::endl << "std::unordered_set,   " << getName<NUM_T>() << " Speed up: "
+                    << std::fixed << std::setprecision(2) << percent( base, uset ) << "%"
+
                     << std::endl << "btree::btree_set,     " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, cppbtree ) << "%"
 
