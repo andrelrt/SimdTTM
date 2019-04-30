@@ -38,6 +38,14 @@
 
 #include <SimdTTM/detail/simd/compatibility.h>
 
+#define SIMDTTM_DEBUG 1
+
+#ifdef SIMDTTM_DEBUG
+#define DEBUG_CHECK_NODE( a, b, c,d ) debug_check_node( a, b, c, d )
+#else
+#define DEBUG_CHECK_NODE( a, b, c,d ) do{}while(0)
+#endif
+
 namespace SimdTTM {
 namespace detail {
 
@@ -73,6 +81,7 @@ public:
             std::copy_backward( ptr + pos, ptr + size, ptr + size +1 );
         }
         ptr[pos] = val;
+        DEBUG_CHECK_NODE( "insert", val, pos, size );
     }
 
     value_type remove( uint16_t pos, uint16_t size )
@@ -82,6 +91,7 @@ public:
         if( pos < size -1 )
             std::copy( ptr + pos + 1, ptr + size, ptr + pos );
         ptr[ size-1 ] = empty_value;
+        DEBUG_CHECK_NODE( "remove", ret, pos, size );
         return ret;
     }
 
@@ -112,6 +122,7 @@ public:
         }
         auto ev = empty_value;
         std::fill( ptr + node_middle, ptr + node_size, ev );
+        DEBUG_CHECK_NODE( "split", ret, pos, node_middle );
         return ret;
     }
 
@@ -124,6 +135,7 @@ public:
         std::copy( nextptr, nextptr + nextSize, ptr + size + 1 );
         auto ev = empty_value;
         std::fill( nextptr, nextptr + nextSize, ev );
+        DEBUG_CHECK_NODE( "merge", val, size, nextSize );
     }
 
     value_type back( uint16_t size ) const
@@ -174,6 +186,20 @@ private:
     value_type* as_ptr() const
     {
         return const_cast<value_type*>(reinterpret_cast<const value_type*>( node_.data() ));
+    }
+
+    void debug_check_node( const char* str, value_type val, uint16_t pos, uint16_t size )
+    {
+        value_type* ptr = as_ptr();
+        for( size_t i = 0; i < node_size -1; ++i )
+        {
+            if( ptr[ i ] > ptr[ i + 1 ] )
+            {
+                std::cerr << std::hex << str << " " << val << " " << pos << " " << size
+                          << " DEBUG CHECK. Invalid node: " << *this << std::endl;
+            }
+        }
+
     }
 };
 
@@ -257,7 +283,8 @@ public:
         {
             // Try shifts, left and right
             if( node != 0 &&
-                node_sizes_[ prev ] < node_size )
+                node_sizes_[ prev ] < node_size &&
+                leftRoot != empty_value )
             {
                 int32_t pos = row_[node].upper_bound( val );
                 return std::make_pair( InsertMode::ShiftLeft,
@@ -266,16 +293,28 @@ public:
 
             size_t next = node_list_[node];
             if( next != list_end &&
-                node_sizes_[ next ] < node_size )
+                node_sizes_[ next ] < node_size &&
+                rightRoot != empty_value )
+
             {
+                std::cout << "prev -> node -> next: " << row_[ prev ]
+                          << " -> " << row_[ node ]
+                          << " -> " << row_[ next ] << std::endl;
+
                 int32_t pos = row_[node].upper_bound( val );
                 return std::make_pair( InsertMode::ShiftRight,
                                        insert_shift_right( node, pos, val, rightRoot ) );
             }
         }
 
+        std::cout << "prev -> node: " << row_[ prev ]
+                  << " -> " << row_[ node ] << std::endl;
+
         // The last effort is to split the node
         value_type ret = split_insert_node( node, val );
+
+        std::cout << "node -> next: " << row_[ node ]
+                  << " -> " << row_[ node_list_[node] ] << std::endl;
 
         fill_translation_map( extnode );
 
@@ -481,13 +520,14 @@ private:
 
     void fill_translation_map( uint16_t extnode )
     {
-        uint16_t node = translation_map_[ extnode ];
+        uint16_t node = 0; // translation_map_[ extnode ];
+        uint16_t extn = 0; // extnode;
         do
         {
-            translation_map_[ extnode ] = node;
+            translation_map_[ extn ] = node;
             node = node_list_[ node ];
 
-            ++extnode;
+            ++extn;
 
         } while( node != list_end );
     }
@@ -525,6 +565,8 @@ public:
     void insert( value_type val )
     {
         assert( data_.back().isRoot() );
+        std::cout << std::hex;
+        //std::cout << "Insert: " << val << std::endl;
 
         bool found;
         std::vector< std::pair< size_t, size_t > > nodes;
@@ -541,22 +583,40 @@ public:
             auto& parentRow = data_[i+1];
 
             auto& prevNode = nodes[ nodes.size() -2 ];
+            //std::cout << "Parent left: (" <<  prevNode.first
+            //          << ", " << prevNode.second -1 << ")\n"
+            //          << "Parent right: (" <<  prevNode.first
+            //          << ", " << prevNode.second  << ")" << std::endl;
+
             value_type& leftRoot = parentRow.get( prevNode.first, std::max( 1ul, prevNode.second ) -1 );
             value_type& rightRoot = parentRow.get( prevNode.first, prevNode.second );
+
+            //std::cout << "Parent left: (" <<  prevNode.first
+            //          << ", " << prevNode.second -1 << ") = " << leftRoot << "\n"
+            //          << "Parent right: (" <<  prevNode.first
+            //          << ", " << prevNode.second << ") = " << rightRoot << std::endl;
 
             ins = row.insert( true, nodes.back().first, ins.second, leftRoot, rightRoot );
             switch( ins.first )
             {
                 case InsertMode::NodeOnly:
+                    std::cout << val << " - NodeOnly" << std::endl;
                     return;
 
                 case InsertMode::ShiftLeft:
+                    std::cout << val << " - ShiftLeft: " << ins.second << std::endl;
                     leftRoot = ins.second;
                     return;
 
                 case InsertMode::ShiftRight:
+                    std::cout << val << " - ShiftRight: " << ins.second << " - lr_Root: "
+                              << leftRoot << " " << rightRoot << std::endl;
                     rightRoot = ins.second;
                     return;
+
+                case InsertMode::SplitNode:
+                    std::cout << val << " - SplitNode: " << ins.second << std::endl;
+                    break;
             }
 
             nodes.pop_back();
