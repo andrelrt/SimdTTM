@@ -55,6 +55,17 @@ void printBtree( T& btree )
     std::cout << std::hex << btree << std::endl;
 }
 
+
+template <typename T> class ValueTypesTest: public ::testing::Test {};
+using ValueTypes = ::testing::Types<
+#if defined(STTM_VC_ENABLED) // XXX Vc library bug on int8_t and int64_t
+    int16_t, int32_t, float, double
+#else
+    int8_t, int16_t, int32_t, int64_t, float, double
+#endif
+>;
+TYPED_TEST_CASE(ValueTypesTest, ValueTypes);
+
 TEST(Btree, BigTest)
 {
     SimdTTM::detail::btree<int32_t, 16> btree;
@@ -154,6 +165,20 @@ TEST(Btree, EmptyTest)
     btree.insert( 0x400 + 15 ); printBtree( btree );
 
     }
+}
+
+TYPED_TEST(ValueTypesTest, RandomTest)
+{
+    using value_type = TypeParam;
+
+    std::vector< value_type > randData;
+    srand( 1 );
+    std::generate_n( std::back_inserter(randData), 0x4000, &rand );
+
+    SimdTTM::detail::btree<value_type, 16> btree;
+
+    for( value_type val : randData )
+        btree.insert( val );
 }
 
 //TEST(BtreeRow, EmptyTest)

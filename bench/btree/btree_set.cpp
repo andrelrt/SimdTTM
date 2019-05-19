@@ -109,7 +109,7 @@ public:
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-            uint64_t base = bench< std::set< NUM_T > >( "std::set ............", runSize, inloop, verbose );
+            uint64_t base = bench< std::set< NUM_T > >( "std::set (base) .....", runSize, inloop, verbose );
             uint64_t uset = bench< std::unordered_set< NUM_T > >( "std::unordered_set ..", runSize, inloop, verbose );
             uint64_t cppbtree = bench< btree::btree_set< NUM_T > >( "btree::btree_set ....", runSize, inloop, verbose );
 
@@ -122,28 +122,28 @@ public:
             if( verbose )
             {
                 std::cout
-                    << std::endl << "std::unordered_set,   " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "std::unordered_set,     " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, uset ) << "%"
 
-                    << std::endl << "btree::btree_set,     " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "btree::btree_set,       " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, cppbtree ) << "%"
 
-                    << std::endl << "SimdTTM::btree<128> , " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "SimdTTM::btree<128>,    " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, btree128 ) << "%"
 
-                    << std::endl << "SimdTTM::btree<256>,  " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "SimdTTM::btree<256>,    " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, btree256 ) << "%"
 
-                    << std::endl << "SimdTTM::btree<512>,  " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "SimdTTM::btree<512>,    " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, btree512 ) << "%"
 
-                    << std::endl << "SimdTTM::btree<1024>, " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "SimdTTM::btree<1024>,   " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, btree1024 ) << "%"
 
-                    << std::endl << "SimdTTM::btree<2048>, " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "SimdTTM::btree<2048>,   " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( base, btree2048 ) << "%"
 
-                    << std::endl << "SimdTTM vs cppbtree,  " << getName<NUM_T>() << " Speed up: "
+                    << std::endl << "btree<256> vs cppbtree, " << getName<NUM_T>() << " Speed up: "
                     << std::fixed << std::setprecision(2) << percent( cppbtree, btree256 ) << "%"
 
                     << std::endl << std::endl;
@@ -152,7 +152,7 @@ public:
             {
                 std::cout
                     << base
-                    << "," << btree128
+                    << "," << btree256
                     << std::endl;
             }
         }

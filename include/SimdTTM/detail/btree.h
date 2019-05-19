@@ -171,6 +171,10 @@ public:
             pos += cur;
             ++idx;
 
+//            if( val == 0x121 )
+//                std::cout << "val, cur, pos, this: "
+//                          << val << ", " << cur << ", " << pos << ", " << *this << std::endl;
+
         } while( cur == simd_type::size() && idx < node_.size() );
         return pos;
     }
@@ -195,8 +199,10 @@ private:
         {
             if( ptr[ i ] > ptr[ i + 1 ] )
             {
-                std::cerr << std::hex << str << " " << val << " " << pos << " " << size
-                          << " DEBUG CHECK. Invalid node: " << *this << std::endl;
+                std::stringstream ss;
+                ss << std::hex << str << " " << val << " " << pos << " " << size
+                   << " DEBUG CHECK. Invalid node: " << *this;
+                throw std::out_of_range(ss.str());
             }
         }
 
@@ -276,6 +282,7 @@ public:
             int32_t pos = row_[node].upper_bound( val );
             row_[node].insert( val, pos, node_sizes_[node] );
             ++node_sizes_[node];
+//            std::cout << "node (" << node << "): " << row_[ node ] << std::endl;
             return std::make_pair( InsertMode::NodeOnly, value_type(0) );
         }
 
@@ -297,9 +304,9 @@ public:
                 rightRoot != empty_value )
 
             {
-                std::cout << "prev -> node -> next: " << row_[ prev ]
-                          << " -> " << row_[ node ]
-                          << " -> " << row_[ next ] << std::endl;
+//                std::cout << "prev -> node -> next: " << row_[ prev ]
+//                          << " -> " << row_[ node ]
+//                          << " -> " << row_[ next ] << std::endl;
 
                 int32_t pos = row_[node].upper_bound( val );
                 return std::make_pair( InsertMode::ShiftRight,
@@ -307,14 +314,14 @@ public:
             }
         }
 
-        std::cout << "prev -> node: " << row_[ prev ]
-                  << " -> " << row_[ node ] << std::endl;
+//        std::cout << "prev (" << prev << ") -> node (" << node << "): " << row_[ prev ]
+//                  << " -> " << row_[ node ] << std::endl;
 
         // The last effort is to split the node
         value_type ret = split_insert_node( node, val );
 
-        std::cout << "node -> next: " << row_[ node ]
-                  << " -> " << row_[ node_list_[node] ] << std::endl;
+//        std::cout << "node (" << node << ") -> next (" << node_list_[node] << "): " << row_[ node ]
+//                  << " -> " << row_[ node_list_[node] ] << std::endl;
 
         fill_translation_map( extnode );
 
@@ -380,6 +387,8 @@ public:
     {
         range_check( extnode );
         size_t node = translate_node( extnode ).first;
+//        if( val == 0x121 )
+//            std::cout << "extnode, node: " << extnode << ", " << node << std::endl;
         int32_t pos = row_[node].upper_bound( val );
         return std::make_pair( pos, pos != 0 && row_[node][pos-1] == val );
     }
@@ -387,11 +396,15 @@ public:
     size_t count_before_node( size_t extnode )
     {
         range_check( extnode );
-        size_t node = translate_node( extnode ).first;
 
         size_t sum = 0;
-        for( size_t i = 0; i < node; ++ i )
-            sum += node_sizes_[i];
+        for( size_t i = 0; i < extnode ; ++i )
+        {
+            size_t node = translation_map_[ i ];
+            sum += node_sizes_[ node ] + 1;
+        }
+//        if( extnode > 1 )
+//            sum += extnode -1;
 
         return sum;
     }
@@ -565,7 +578,7 @@ public:
     void insert( value_type val )
     {
         assert( data_.back().isRoot() );
-        std::cout << std::hex;
+//        std::cout << std::hex;
         //std::cout << "Insert: " << val << std::endl;
 
         bool found;
@@ -600,22 +613,23 @@ public:
             switch( ins.first )
             {
                 case InsertMode::NodeOnly:
-                    std::cout << val << " - NodeOnly" << std::endl;
+//                    std::cout << val << " - NodeOnly" << std::endl;
                     return;
 
                 case InsertMode::ShiftLeft:
-                    std::cout << val << " - ShiftLeft: " << ins.second << std::endl;
+//                    std::cout << val << " - ShiftLeft: " << ins.second << std::endl;
                     leftRoot = ins.second;
                     return;
 
                 case InsertMode::ShiftRight:
-                    std::cout << val << " - ShiftRight: " << ins.second << " - lr_Root: "
-                              << leftRoot << " " << rightRoot << std::endl;
+//                    std::cout << val << " - ShiftRight: " << ins.second << " - lr_Root: "
+//                              << leftRoot << " " << rightRoot << std::endl;
                     rightRoot = ins.second;
                     return;
 
                 case InsertMode::SplitNode:
-                    std::cout << val << " - SplitNode: " << ins.second << std::endl;
+//                    std::cout << val << " - SplitNode: " << ins.second
+//                              << "\n" << *this << std::endl;
                     break;
             }
 
@@ -623,7 +637,10 @@ public:
         }
         ins = data_.back().insert( false, nodes.back().first, ins.second, 0, 0 );
         if( ins.first == InsertMode::NodeOnly )
+        {
+//            std::cout << val << " - NodeOnly on root\n" << *this << std::endl;
             return;
+        }
 
         // New root
         data_.emplace_back();
@@ -659,15 +676,25 @@ private:
         for( size_t i = data_.size()-1; i > 0; --i )
         {
             auto next = data_[i].upper_bound( curNode, val );
+//            if( val == 0x121 )
+//                std::cout << "curNode, next.first: " << curNode << ", " << next.first << std::endl;
             nodes.emplace_back( curNode, next.first );
 
             if( next.second )
                 return std::make_pair( true, nodes );
 
             size_t before = data_[i].count_before_node( curNode );
+//            if( val == 0x35b )
+//                std::cout << "before, next, data: "
+//                          << before << ", " 
+//                          << next.first << ", "
+//                          << data_[i] << std::endl;
             curNode = before + next.first;
         }
         auto next = data_[0].upper_bound( curNode, val );
+//        if( val == 0x35b )
+//            std::cout << "curNode, next.first, this: "
+//                      << curNode << ", " << next.first << ", " << *this << std::endl;
         nodes.emplace_back( curNode, next.first );
 
         return std::make_pair( next.second, nodes );
