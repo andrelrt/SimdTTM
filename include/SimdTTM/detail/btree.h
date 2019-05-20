@@ -41,9 +41,9 @@
 #define SIMDTTM_DEBUG 1
 
 #ifdef SIMDTTM_DEBUG
-#define DEBUG_CHECK_NODE( a, b, c,d ) debug_check_node( a, b, c, d )
+#define DEBUG_CHECK_NODE( a, b, c, d ) debug_check_node( a, b, c, d )
 #else
-#define DEBUG_CHECK_NODE( a, b, c,d ) do{}while(0)
+#define DEBUG_CHECK_NODE( a, b, c, d ) do{}while(0)
 #endif
 
 namespace SimdTTM {
@@ -171,9 +171,9 @@ public:
             pos += cur;
             ++idx;
 
-//            if( val == 0x121 )
-//                std::cout << "val, cur, pos, this: "
-//                          << val << ", " << cur << ", " << pos << ", " << *this << std::endl;
+            if( val == -15024 || val == 3811 )
+                std::cerr << "val, cur, pos, this: "
+                          << val << ", " << cur << ", " << pos << ", " << *this << std::endl;
 
         } while( cur == simd_type::size() && idx < node_.size() );
         return pos;
@@ -192,6 +192,7 @@ private:
         return const_cast<value_type*>(reinterpret_cast<const value_type*>( node_.data() ));
     }
 
+#ifdef SIMDTTM_DEBUG
     void debug_check_node( const char* str, value_type val, uint16_t pos, uint16_t size )
     {
         value_type* ptr = as_ptr();
@@ -200,13 +201,14 @@ private:
             if( ptr[ i ] > ptr[ i + 1 ] )
             {
                 std::stringstream ss;
-                ss << std::hex << str << " " << val << " " << pos << " " << size
-                   << " DEBUG CHECK. Invalid node: " << *this;
+                ss << std::dec << str << " " << val << " " << pos << " " << size
+                   << " DEBUG CHECK. Invalid node: " << std::hex << *this;
                 throw std::out_of_range(ss.str());
             }
         }
 
     }
+#endif
 };
 
 enum class InsertMode
@@ -278,11 +280,12 @@ public:
 
         if( node_sizes_[node] < node_size )
         {
+        if( val == -15024 || val == 3811 )
+            std::cout << "node only node (" << node << "): " << row_[ node ] << std::endl;
             // Insert an item on a node
             int32_t pos = row_[node].upper_bound( val );
             row_[node].insert( val, pos, node_sizes_[node] );
             ++node_sizes_[node];
-//            std::cout << "node (" << node << "): " << row_[ node ] << std::endl;
             return std::make_pair( InsertMode::NodeOnly, value_type(0) );
         }
 
@@ -293,6 +296,8 @@ public:
                 node_sizes_[ prev ] < node_size &&
                 leftRoot != empty_value )
             {
+        if( val == -15024 || val == 3811 )
+            std::cout << "shift left node (" << node << "): " << row_[ node ] << std::endl;
                 int32_t pos = row_[node].upper_bound( val );
                 return std::make_pair( InsertMode::ShiftLeft,
                                        insert_shift_left( node, prev, pos, val, leftRoot ) );
@@ -304,19 +309,26 @@ public:
                 rightRoot != empty_value )
 
             {
+        if( val == -15024 || val == 3811 )
+            std::cout << "shift right node (" << node << "): " << row_[ node ] << ", " << row_[ next ] << std::endl;
 //                std::cout << "prev -> node -> next: " << row_[ prev ]
 //                          << " -> " << row_[ node ]
 //                          << " -> " << row_[ next ] << std::endl;
 
                 int32_t pos = row_[node].upper_bound( val );
-                return std::make_pair( InsertMode::ShiftRight,
-                                       insert_shift_right( node, pos, val, rightRoot ) );
+                auto isr = insert_shift_right( node, pos, val, rightRoot );
+        if( val == -15024 || val == 3811 )
+            std::cout << "shift right node (" << node << "): " << row_[ node ] << ", " << row_[ next ] << std::endl;
+                return std::make_pair( InsertMode::ShiftRight, isr );
+                                       
             }
         }
 
 //        std::cout << "prev (" << prev << ") -> node (" << node << "): " << row_[ prev ]
 //                  << " -> " << row_[ node ] << std::endl;
 
+        if( val == -15024 || val == 3811 )
+            std::cout << "split node (" << node << "): " << row_[ node ] << std::endl;
         // The last effort is to split the node
         value_type ret = split_insert_node( node, val );
 
@@ -434,8 +446,16 @@ private:
 
     value_type insert_shift_right( size_t node, int32_t pos, value_type val, value_type root )
     {
-        value_type ret = row_[node].remove( node_sizes_[node] -1, node_sizes_[node] );
-        row_[node].insert( val, pos, node_sizes_[node] -1 );
+        value_type ret;
+        if( pos != simd_type::size() )
+        {
+            ret = row_[node].remove( node_sizes_[node] -1, node_sizes_[node] );
+            row_[node].insert( val, pos, node_sizes_[node] -1 );
+        }
+        else
+        {
+            ret = val;
+        }
 
         size_t next = node_list_[node];
         row_[next].insert( root, 0, node_sizes_[next] );
@@ -533,8 +553,8 @@ private:
 
     void fill_translation_map( uint16_t extnode )
     {
-        uint16_t node = 0; // translation_map_[ extnode ];
-        uint16_t extn = 0; // extnode;
+        uint16_t node = translation_map_[ extnode ];
+        uint16_t extn = extnode;
         do
         {
             translation_map_[ extn ] = node;
@@ -625,6 +645,8 @@ public:
 //                    std::cout << val << " - ShiftRight: " << ins.second << " - lr_Root: "
 //                              << leftRoot << " " << rightRoot << std::endl;
                     rightRoot = ins.second;
+        if( val == 3811 )
+            std::cout << "this: " << *this << std::endl;
                     return;
 
                 case InsertMode::SplitNode:
@@ -676,8 +698,8 @@ private:
         for( size_t i = data_.size()-1; i > 0; --i )
         {
             auto next = data_[i].upper_bound( curNode, val );
-//            if( val == 0x121 )
-//                std::cout << "curNode, next.first: " << curNode << ", " << next.first << std::endl;
+            if( val == 3811 )
+                std::cout << "curNode, next.first: " << curNode << ", " << next.first << std::endl;
             nodes.emplace_back( curNode, next.first );
 
             if( next.second )
@@ -692,9 +714,9 @@ private:
             curNode = before + next.first;
         }
         auto next = data_[0].upper_bound( curNode, val );
-//        if( val == 0x35b )
-//            std::cout << "curNode, next.first, this: "
-//                      << curNode << ", " << next.first << ", " << *this << std::endl;
+        if( val == 3811 )
+            std::cout << "curNode, next.first, this: "
+                      << curNode << ", " << next.first << ", " << *this << std::endl;
         nodes.emplace_back( curNode, next.first );
 
         return std::make_pair( next.second, nodes );
