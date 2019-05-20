@@ -76,9 +76,10 @@ public:
     void insert( value_type val, uint16_t pos, uint16_t size )
     {
         value_type* ptr = as_ptr();
+        uint16_t maxsize = std::min< uint16_t >( size, node_size-1 );
         if( pos < size -1 )
         {
-            std::copy_backward( ptr + pos, ptr + size, ptr + size +1 );
+            std::copy_backward( ptr + pos, ptr + maxsize, ptr + maxsize +1 );
         }
         ptr[pos] = val;
         DEBUG_CHECK_NODE( "insert", val, pos, size );
@@ -91,7 +92,7 @@ public:
         if( pos < size -1 )
             std::copy( ptr + pos + 1, ptr + size, ptr + pos );
         ptr[ size-1 ] = empty_value;
-        DEBUG_CHECK_NODE( "remove", ret, pos, size );
+        DEBUG_CHECK_NODE( "remove", ret, pos, size-1 );
         return ret;
     }
 
@@ -109,6 +110,7 @@ public:
             std::fill( ptr + node_middle -1, ptr + node_size, ev );
 
             insert( val, pos, node_middle );
+            DEBUG_CHECK_NODE( "split", ret, pos, node_middle );
         }
         else if( pos > node_middle )
         {
@@ -117,7 +119,8 @@ public:
             auto ev = empty_value;
             std::fill( ptr + node_middle, ptr + node_size, ev );
 
-            next.insert( val, pos - node_middle -1, node_middle -1 );
+            next.insert( val, pos - node_middle -1, node_middle );
+            DEBUG_CHECK_NODE( "split", ret, node_middle -1, node_middle );
         }
         else // pos == node_middle
         {
@@ -125,8 +128,8 @@ public:
             ret = val;
             auto ev = empty_value;
             std::fill( ptr + node_middle, ptr + node_size, ev );
+            DEBUG_CHECK_NODE( "split", ret, node_middle -1, node_middle );
         }
-        DEBUG_CHECK_NODE( "split", ret, pos, node_middle );
         return ret;
     }
 
@@ -175,7 +178,7 @@ public:
             pos += cur;
             ++idx;
 
-            if( val == 20411 )
+            if( val == -1178 )
                 std::cerr << "val, cur, pos, this: "
                           << val << ", " << cur << ", " << pos << ", " << *this << std::endl;
 
@@ -304,12 +307,12 @@ public:
 
         if( node_sizes_[node] < node_size )
         {
-        if( val == 20411 )
-            std::cout << "node only node (" << node << "): " << row_[ node ] << std::endl;
+            if( val == -1178 )
+                std::cout << "node only node (" << node << "): " << row_[ node ] << std::endl;
             // Insert an item on a node
             int32_t pos = row_[node].upper_bound( val );
-            row_[node].insert( val, pos, node_sizes_[node] );
             ++node_sizes_[node];
+            row_[node].insert( val, pos, node_sizes_[node] );
             return std::make_pair( InsertMode::NodeOnly, value_type(0) );
         }
 
@@ -320,12 +323,12 @@ public:
                 node_sizes_[ prev ] < node_size &&
                 leftRoot != empty_value )
             {
-        if( val == 20411 )
-            std::cout << "shift left node (" << node << "): " << row_[ prev ] << ", " << row_[ node ] << std::endl;
+                if( val == -1178 )
+                    std::cout << "shift left node (" << node << "): " << row_[ prev ] << ", " << row_[ node ] << std::endl;
                 int32_t pos = row_[node].upper_bound( val );
                 auto isl = insert_shift_left( node, prev, pos, val, leftRoot );
-        if( val == 20411 )
-            std::cout << "shift left node (" << node << "): " << row_[ prev ] << ", " << row_[ node ] << std::endl;
+                if( val == -1178 )
+                    std::cout << "shift left node (" << node << "): " << row_[ prev ] << ", " << row_[ node ] << std::endl;
                 return std::make_pair( InsertMode::ShiftLeft, isl );
 
             }
@@ -336,7 +339,7 @@ public:
                 rightRoot != empty_value )
 
             {
-                if( val == 20411 )
+                if( val == -1178 )
                     std::cout << "shift right node (" << node << "): " << row_[ node ] << ", " << row_[ next ] << std::endl;
 //                std::cout << "prev -> node -> next: " << row_[ prev ]
 //                          << " -> " << row_[ node ]
@@ -344,7 +347,7 @@ public:
 
                 int32_t pos = row_[node].upper_bound( val );
                 auto isr = insert_shift_right( node, pos, val, rightRoot );
-                if( val == 20411 )
+                if( val == -1178 )
                     std::cout << "shift right node (" << node << "): " << row_[ node ] << ", " << row_[ next ] << std::endl;
                 return std::make_pair( InsertMode::ShiftRight, isr );
             }
@@ -353,7 +356,7 @@ public:
 //        std::cout << "prev (" << prev << ") -> node (" << node << "): " << row_[ prev ]
 //                  << " -> " << row_[ node ] << std::endl;
 
-        if( val == 20411 )
+        if( val == -1178 )
             std::cout << "split node (" << node << "): " << row_[ node ] << std::endl;
         // The last effort is to split the node
         value_type ret = split_insert_node( node, val );
@@ -467,15 +470,15 @@ private:
         if( pos > 0 )
         {
             ret = row_[node].remove( 0, node_sizes_[node] );
-            row_[node].insert( val, pos-1, node_sizes_[node] -1 );
+            row_[node].insert( val, pos-1, node_sizes_[node] );
         }
-        if( root == 12616 )
+        if( root == -340 )
             std::cout << "ISL: " << node_sizes_[prev] << ", " << row_[ prev ] << std::endl;
 
-        row_[prev].insert( root, node_sizes_[prev], node_sizes_[prev] );
         ++node_sizes_[prev];
+        row_[prev].insert( root, node_sizes_[prev]-1, node_sizes_[prev] );
 
-        if( root == 12616 )
+        if( root == -340 )
             std::cout << "ISL: " << node_sizes_[prev] << ", " << row_[ prev ] << std::endl;
 
         return ret;
@@ -483,17 +486,26 @@ private:
 
     value_type insert_shift_right( size_t node, int32_t pos, value_type val, value_type root )
     {
+        size_t next = node_list_[node];
+        if( root == -340 )
+            std::cout << "ISR: " << node_sizes_[next] << ", " << row_[ next ] << std::endl;
+
         value_type ret = val;
         if( pos < simd_type::size() )
         {
             ret = row_[node][ node_sizes_[node] -1 ];
-            row_[node][ node_sizes_[node] -1 ] = empty_value;
-            row_[node].insert( val, pos, node_sizes_[node] -1 );
+            //row_[node][ node_sizes_[node] -1 ] = empty_value;
+            row_[node].insert( val, pos, node_sizes_[node] );
         }
 
-        size_t next = node_list_[node];
-        row_[next].insert( root, 0, node_sizes_[next] );
+        if( root == -340 )
+            std::cout << "ISR: " << node_sizes_[next] << ", " << row_[ next ] << std::endl;
+
         ++node_sizes_[next];
+        row_[next].insert( root, 0, node_sizes_[next] );
+
+        if( root == -340 )
+            std::cout << "ISR: " << node_sizes_[next] << ", " << row_[ next ] << std::endl;
         return ret;
     }
 
@@ -679,7 +691,7 @@ public:
 //                    std::cout << val << " - ShiftRight: " << ins.second << " - lr_Root: "
 //                              << leftRoot << " " << rightRoot << std::endl;
                     rightRoot = ins.second;
-        if( val == 20411 )
+        if( val == -1178 )
             std::cout << "this: " << *this << std::endl;
                     return;
 
@@ -732,7 +744,7 @@ private:
         for( size_t i = data_.size()-1; i > 0; --i )
         {
             auto next = data_[i].upper_bound( curNode, val );
-            if( val == 20411 )
+            if( val == -1178 )
                 std::cout << "curNode, next.first: " << curNode << ", " << next.first << std::endl;
             nodes.emplace_back( curNode, next.first );
 
@@ -748,7 +760,7 @@ private:
             curNode = before + next.first;
         }
         auto next = data_[0].upper_bound( curNode, val );
-        if( val == 20411 )
+        if( val == -1178 )
             std::cout << "curNode, next.first, this: "
                       << curNode << ", " << next.first << ", " << *this << std::endl;
         nodes.emplace_back( curNode, next.first );
