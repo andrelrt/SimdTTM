@@ -185,8 +185,8 @@ public:
         uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBound< avector< NUM_T >, sz > >
                         ( ss.str(), runSize, inLoop, verbose );
 
-        std::vector< std::pair< size_t, uint64_t > > vec =
-            benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
+        std::vector< std::pair< size_t, uint64_t > > vec
+           ;//= benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
 
         vec.emplace_back( sz, ret );
         return vec;

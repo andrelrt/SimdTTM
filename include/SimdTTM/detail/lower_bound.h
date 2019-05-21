@@ -31,6 +31,39 @@
 namespace SimdTTM {
 namespace detail {
 
+template< typename Val_T, size_t NUM_T >
+class set_functor
+{
+    using value_type = Val_T;
+    using simd_type = simd::simd_type< value_type >;
+
+public:
+    template< class ForwardIterator >
+    simd_type operator()( simd_type vec, ForwardIterator it, size_t step )
+    {
+        auto ret = set_functor< Val_T, NUM_T -1 >()( vec, it, step );
+        std::advance( it, step * (NUM_T+1) );
+        ret[ NUM_T ] = *it;
+        return ret;
+    }
+};
+
+template< typename Val_T >
+class set_functor< Val_T, 0 >
+{
+    using value_type = Val_T;
+    using simd_type = simd::simd_type< value_type >;
+
+public:
+    template< class ForwardIterator >
+    simd_type operator()( simd_type vec, ForwardIterator it, size_t step )
+    {
+        std::advance( it, step );
+        vec[ 0 ] = *it;
+        return vec;
+    }
+};
+
 template< class ForwardIterator, size_t array_size >
 class simd_filler
 {
@@ -39,15 +72,20 @@ class simd_filler
     using simd_type = simd::simd_type< value_type >;
     static_assert( array_size <= simd_type::size(), "array_size should be less or equal to simd::size()" );
 
-    std::array<iterator_type, array_size +1> iterators;
+    //std::array<iterator_type, array_size +1> iterators;
+
+    size_t step_;
+    iterator_type beg_;
 
 public:
     inline iterator_type operator[](const size_t idx)
     {
-        return iterators[ idx ];
+        auto it = beg_;
+        std::advance( it, idx * step_ );
+        return it;
     }
 
-    inline void prefetch( size_t step, ForwardIterator beg )
+    inline void prefetch( size_t step, iterator_type beg )
     {
         auto it = beg;
         for( size_t i = 0; i < array_size; ++i )
@@ -57,19 +95,13 @@ public:
         }
     }
 
-    inline simd_type get_compare( size_t step, ForwardIterator beg )
+    inline simd_type get_compare( size_t step, iterator_type beg )
     {
-        simd::prefetch( reinterpret_cast<const void*>( &iterators ) );
+        beg_ = beg;
+        step_ = step;
         auto it = beg;
-        iterators[ 0 ] = it;
         simd_type cmp( std::numeric_limits< value_type >::max() );
-        for( size_t i = 0; i < array_size; ++i )
-        {
-            std::advance( it, step );
-            cmp[ i ] = *it;
-            iterators[ i+1 ] = it;
-        }
-        return cmp;
+        return set_functor< value_type, array_size -1 >()( cmp, it, step );
     }
 };
 
