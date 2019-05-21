@@ -31,13 +31,13 @@
 namespace SimdTTM {
 namespace detail {
 
-template< class ForwardIterator >
+template< class ForwardIterator, size_t array_size >
 class simd_filler
 {
     using iterator_type = ForwardIterator;
     using value_type = typename std::iterator_traits< iterator_type >::value_type;
     using simd_type = simd::simd_type< value_type >;
-    static constexpr auto array_size = simd::simd_size< value_type >();
+    static_assert( array_size <= simd_type::size(), "array_size should be less or equal to simd::size()" );
 
     std::array<iterator_type, array_size +1> iterators;
 
@@ -62,7 +62,7 @@ public:
         simd::prefetch( reinterpret_cast<const void*>( &iterators ) );
         auto it = beg;
         iterators[ 0 ] = it;
-        simd_type cmp;
+        simd_type cmp( std::numeric_limits< value_type >::max() );
         for( size_t i = 0; i < array_size; ++i )
         {
             std::advance( it, step );
@@ -74,6 +74,7 @@ public:
 };
 
 template <class ForwardIterator, class T,
+          size_t array_size = simd::simd_size< typename std::iterator_traits< ForwardIterator >::value_type >(),
           typename std::enable_if<
                 std::is_arithmetic< typename std::iterator_traits< ForwardIterator >::value_type >
                    ::value >
@@ -83,11 +84,11 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     using iterator_type = ForwardIterator;
     using value_type = typename std::iterator_traits< iterator_type >::value_type;
     using simd_type = simd::simd_type< value_type >;
-    static constexpr auto array_size = simd::simd_size< value_type >();
+    static_assert( array_size <= simd_type::size(), "array_size should be less or equal to simd::size()" );
 
     auto beg = ibeg;
     auto end = iend;
-    simd_filler<ForwardIterator> filler;
+    simd_filler<ForwardIterator, array_size> filler;
 
     size_t size = std::distance( beg, end );
     if( size < 0x20, 0 )
@@ -108,6 +109,7 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
 
         // N-Way search
         size_t i = simd::greater_than( cmp, skey );
+        i = std::min<size_t>( i, array_size );
 
         // Recalculate iterators
         beg = filler[ i ];

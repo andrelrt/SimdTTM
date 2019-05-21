@@ -30,6 +30,7 @@
 #include <boost/align/aligned_allocator.hpp> 
 
 #include <SimdTTM/algorithm.h>
+#include <SimdTTM/detail/simd/compatibility.h>
 
 template< typename Val_T >
 using avector = std::vector< Val_T, boost::alignment::aligned_allocator<Val_T> >;
@@ -54,7 +55,7 @@ private:
     const container_type& ref_;
 };
 
-template< class Cont_T >
+template< class Cont_T, size_t array_size >
 struct SimdTTMLowerBound
 {
 	using container_type = Cont_T;
@@ -67,8 +68,8 @@ struct SimdTTMLowerBound
 
     const_iterator find( const value_type& key )
     {
-        auto first = SimdTTM::lower_bound< const_iterator,
-                                  value_type >( ref_.begin(), ref_.end(), key );
+        auto first = SimdTTM::lower_bound< const_iterator, value_type, array_size >
+                        ( ref_.begin(), ref_.end(), key );
 
         return (first!=ref_.end() && !(key<*first)) ? first : ref_.end();
     }
@@ -117,11 +118,11 @@ GET_NAME(uint64_t)
 GET_NAME(float)
 GET_NAME(double)
 
-template< class Cont_T, template < typename... > class Index_T >
+template< class Cont_T, class Index_T >
 uint64_t bench( const std::string& name, size_t size, size_t loop, bool verbose )
 {
 	using container_type = Cont_T;
-    using index_type = Index_T< container_type >;
+    using index_type = Index_T;
     using value_type = typename container_type::value_type;
 
     boost::timer::cpu_timer timer;
@@ -172,6 +173,43 @@ float percent( uint64_t base, uint64_t compare )
     return 100.f * (static_cast<float>(base) / static_cast<float>(compare) -1.f);
 }
 
+template< typename NUM_T, size_t sz = SimdTTM::detail::simd::simd_size< NUM_T >() >
+class benchSizes
+{
+public:
+    std::vector< std::pair< size_t, uint64_t > >
+    operator()( size_t runSize, size_t inLoop, bool verbose )
+    {
+        std::stringstream ss;
+        ss << "SimdTTM::lower_bound (" << sz << ")";
+        uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBound< avector< NUM_T >, sz > >
+                        ( ss.str(), runSize, inLoop, verbose );
+
+        std::vector< std::pair< size_t, uint64_t > > vec =
+            benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
+
+        vec.emplace_back( sz, ret );
+        return vec;
+    }
+};
+
+template< typename NUM_T >
+class benchSizes< NUM_T, 1 >
+{
+public:
+    std::vector< std::pair< size_t, uint64_t > >
+    operator()( size_t runSize, size_t inLoop, bool verbose )
+    {
+        uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBound< avector< NUM_T >, 1 > >
+                        ( "SimdTTM::lower_bound (1)", runSize, inLoop, verbose );
+
+        std::vector< std::pair< size_t, uint64_t > > vec;
+        vec.emplace_back( 1, ret );
+        return vec;
+    }
+};
+
+
 template< typename NUM_T, typename... NEXT_T >
 class benchLoop
 {
@@ -204,24 +242,28 @@ public:
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-            uint64_t base = bench< avector< NUM_T >, StdLowerBound >( "std::lower_bound ...", runSize, inloop, verbose );
+            uint64_t base = bench< avector< NUM_T >, StdLowerBound< avector< NUM_T > > >( "std::lower_bound ......", runSize, inloop, verbose );
 
-            uint64_t sse = bench< avector< NUM_T >, SimdTTMLowerBound >( "SimdTTM::lower_bound", runSize, inloop, verbose );
+            auto simd_times = benchSizes< NUM_T >()( runSize, inloop, verbose );
 
             if( verbose )
             {
-                std::cout
-                    << std::endl << "SimdTTM::lower_bound, " << getName<NUM_T>() << " Speed up: "
-                    << std::fixed << std::setprecision(2) << percent( base, sse ) << "%"
+                for( auto&& timer: simd_times )
+                {
+                    std::cout << std::dec
+                        << "\nSimdTTM::lower_bound( " << timer.first << " ), "
+                        << getName<NUM_T>() << " Speed up: "
+                        << std::fixed << std::setprecision(2) << percent( base, timer.second ) << "%";
+                }
 
-                    << std::endl << std::endl;
+                std::cout << std::endl << std::endl;
             }
             else
             {
-                std::cout
-                    << base
-                    << "," << sse
-                    << std::endl;
+                std::cout << base;
+                for( auto&& timer: simd_times )
+                    std::cout << "," << timer.second;
+                std::cout << std::endl;
             }
         }
     }
