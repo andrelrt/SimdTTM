@@ -155,7 +155,11 @@ uint64_t bench( const std::string& name, size_t size, size_t loop, bool verbose 
 //            {
 //                if( *ret != i )
 //                {
-//                    std::cout << *ret << "," << i << "-";
+//                    std::cout << "(" << i
+//                              << "!" << *ret
+//                              << "-" << *(ret-1)
+//                              << "+" << *(ret+1)
+//                              << ")-";
 //                }
 //            }
 //            ++cnt;
@@ -186,7 +190,7 @@ public:
                         ( ss.str(), runSize, inLoop, verbose );
 
         std::vector< std::pair< size_t, uint64_t > > vec
-             ;// = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
+              = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
 
         vec.emplace_back( sz, ret );
         return vec;
@@ -248,12 +252,21 @@ public:
 
             if( verbose )
             {
+                uint64_t best = std::min_element( simd_times.begin(), simd_times.end(),
+                                                  []( const std::pair< size_t, uint64_t >& lhs,
+                                                      const std::pair< size_t, uint64_t >& rhs ) -> bool
+                                                  {
+                                                      return lhs.second < rhs.second;
+                                                  })->second;
                 for( auto&& timer: simd_times )
                 {
                     std::cout << std::dec
                         << "\nSimdTTM::lower_bound( " << timer.first << " ), "
                         << getName<NUM_T>() << " Speed up: "
                         << std::fixed << std::setprecision(2) << percent( base, timer.second ) << "%";
+
+                    if( timer.second == best )
+                        std::cout << " <- Best";
                 }
 
                 std::cout << std::endl << std::endl;

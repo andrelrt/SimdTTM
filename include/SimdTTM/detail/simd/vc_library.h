@@ -65,4 +65,12 @@ static inline int greater_than( const Vector_T vec, const Val_T val )
     return bit;
 }
 
+template< typename Val_T >
+static inline simd_type< Val_T > load_unaligned( const void* p )
+{
+    simd_type< Val_T > ret;
+    ret.load( reinterpret_cast<const Val_T*>( p ), Vc::Unaligned );
+    return ret;
+}
+
 }}} // namespace SimdTTM::detail::simd

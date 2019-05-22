@@ -57,6 +57,11 @@ template<> struct simd_type< int8_t >
             :[mask] "r"(mask), [def] "r"(def));
         return bit;
     }
+
+    void load_unaligned( const void* p )
+    {
+        data_ = _mm_lddqu_si128( reinterpret_cast<const type*>( p ) );
+    }
 };
 
 template<> struct simd_type< int16_t >
@@ -82,6 +87,11 @@ template<> struct simd_type< int16_t >
             :[bit] "=r" (bit)
             :[mask] "r"(mask), [def] "r"(def));
         return bit >> 1;
+    }
+
+    void load_unaligned( const void* p )
+    {
+        data_ = _mm_lddqu_si128( reinterpret_cast<const type*>( p ) );
     }
 };
 
@@ -109,6 +119,11 @@ template<> struct simd_type< int32_t >
             :[mask] "r"(mask), [def] "r"(def));
         return bit >> 2;
     }
+
+    void load_unaligned( const void* p )
+    {
+        data_ = _mm_lddqu_si128( reinterpret_cast<const type*>( p ) );
+    }
 };
 
 template<> struct simd_type< int64_t >
@@ -134,6 +149,11 @@ template<> struct simd_type< int64_t >
             :[bit] "=r" (bit)
             :[mask] "r"(mask), [def] "r"(def));
         return bit >> 3;
+    }
+
+    void load_unaligned( const void* p )
+    {
+        data_ = _mm_lddqu_si128( reinterpret_cast<const type*>( p ) );
     }
 };
 
@@ -161,6 +181,11 @@ template<> struct simd_type< float >
             :[mask] "r"(mask), [def] "r"(def));
         return bit;
     }
+
+    void load_unaligned( const void* p )
+    {
+        data_ = _mm_loadu_ps( reinterpret_cast<const float*>( p ) );
+    }
 };
 
 template<> struct simd_type< double >
@@ -186,6 +211,11 @@ template<> struct simd_type< double >
             :[bit] "=r" (bit)
             :[mask] "r"(mask), [def] "r"(def));
         return bit;
+    }
+
+    void load_unaligned( const void* p )
+    {
+        data_ = _mm_loadu_pd( reinterpret_cast<const double*>( p ) );
     }
 };
 
@@ -235,6 +265,14 @@ std::ostream& operator<<( std::ostream& out, simd_type< Val_T > rhs )
     }
     out << "]";
     return out;
+}
+
+template< typename Val_T >
+static inline simd_type< Val_T > load_unaligned( const void* p )
+{
+    simd_type< Val_T > ret;
+    ret.load_unaligned( p );
+    return ret;
 }
 
 }}} // namespace SimdTTM::detail::simd

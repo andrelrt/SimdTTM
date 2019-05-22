@@ -105,6 +105,25 @@ public:
     }
 };
 
+template <size_t array_size, class ForwardIterator, class SIMD_T>
+ForwardIterator small_lower_bound( ForwardIterator beg, size_t size, SIMD_T skey )
+{
+    using simd_type = SIMD_T;
+    using iterator_type = ForwardIterator;
+    using value_type = typename std::iterator_traits< iterator_type >::value_type;
+    //simd::prefetch( reinterpret_cast<const void*>( &(*beg) ) );
+
+    //simd_filler<ForwardIterator, array_size> filler;
+    simd_type cmp = simd::load_unaligned< value_type >( &(*beg) );
+         //filler.get_compare( 1, beg );
+    // N-Way search
+    size_t i = simd::greater_than( cmp, skey );
+    i = std::min<size_t>( i, size-1 );
+
+    std::advance( beg, i );
+    return beg;
+}
+
 template <class ForwardIterator, class T,
           size_t array_size = simd::simd_size< typename std::iterator_traits< ForwardIterator >::value_type >(),
           typename std::enable_if<
@@ -123,16 +142,17 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     simd_filler<ForwardIterator, array_size> filler;
 
     size_t size = std::distance( beg, end );
-    if( size < array_size+1, 0 )
+    simd_type skey = simd::from_value( key );
+    if( size < array_size+1 )
     {
         // Standard lower_bound on small sizes
-        return std::lower_bound( beg, end, key );
+        //return std::lower_bound( beg, end, key );
+        return small_lower_bound< array_size >( beg, size, skey );
     }
 
     size_t step = size / (array_size + 1);
     filler.prefetch( step, beg );
 
-    simd_type skey = simd::from_value( key );
     while( 1 )
     {
         simd_type cmp = filler.get_compare( step, beg );
@@ -154,10 +174,11 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
         {
             step = std::distance( beg, end ) / (array_size + 1);
         }
-        if( __builtin_expect( step < array_size+1, 0 ) )
+        if( __builtin_expect( std::distance( beg, end ) < array_size+1, 0 ) )
         {
             // Standard lower_bound on small sizes
-            return std::lower_bound( beg, end, key );
+            //return std::lower_bound( beg, end, key );
+            return small_lower_bound< array_size >( beg, std::distance( beg, end ), skey );
         }
     }
 }
