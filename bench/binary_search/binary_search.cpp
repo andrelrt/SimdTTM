@@ -186,7 +186,7 @@ public:
                         ( ss.str(), runSize, inLoop, verbose );
 
         std::vector< std::pair< size_t, uint64_t > > vec
-           ;//= benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
+             ;// = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
 
         vec.emplace_back( sz, ret );
         return vec;

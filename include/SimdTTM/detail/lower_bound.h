@@ -123,7 +123,7 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     simd_filler<ForwardIterator, array_size> filler;
 
     size_t size = std::distance( beg, end );
-    if( size < 0x20, 0 )
+    if( size < array_size+1, 0 )
     {
         // Standard lower_bound on small sizes
         return std::lower_bound( beg, end, key );
@@ -154,7 +154,7 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
         {
             step = std::distance( beg, end ) / (array_size + 1);
         }
-        if( __builtin_expect( step < 0x20, 0 ) )
+        if( __builtin_expect( step < array_size+1, 0 ) )
         {
             // Standard lower_bound on small sizes
             return std::lower_bound( beg, end, key );
