@@ -2,7 +2,7 @@
 
 #include <SimdTTM/detail/btree.h>
 
-void printRow( SimdTTM::detail::btree_row<int32_t, 16>& row, std::pair<bool, int32_t>& up )
+void printRow( SimdTTM::detail::btree_row<int32_t, 32>& row, std::pair<bool, int32_t>& up )
 {
     std::cout << std::hex << row;
     if( up.first )
@@ -12,7 +12,7 @@ void printRow( SimdTTM::detail::btree_row<int32_t, 16>& row, std::pair<bool, int
     std::cout << std::endl << std::endl;
 }
 
-void printRow( SimdTTM::detail::btree_row<int32_t, 16>& row,
+void printRow( SimdTTM::detail::btree_row<int32_t, 32>& row,
                std::pair<SimdTTM::detail::RemoveMode, int32_t>& up )
 {
     std::cout << std::hex << row;
@@ -59,16 +59,16 @@ void printBtree( T& btree )
 template <typename T> class ValueTypesTest: public ::testing::Test {};
 using ValueTypes = ::testing::Types<
 #if defined(STTM_VC_ENABLED) // XXX Vc library bug on int8_t and int64_t
-    int16_t, int32_t, float, double
+    int32_t, int32_t, float, double
 #else
-    int8_t, int16_t, int32_t, int64_t, float, double
+    int8_t, int32_t, int32_t, int64_t, float, double
 #endif
 >;
 TYPED_TEST_CASE(ValueTypesTest, ValueTypes);
 
 TEST(Btree, BigTest)
 {
-    SimdTTM::detail::btree<int32_t, 16> btree;
+    SimdTTM::detail::btree<int32_t, 32> btree;
     for( int32_t i = 0; i <= 0x10000; ++i )
     {
         btree.insert( i );
@@ -78,7 +78,7 @@ TEST(Btree, BigTest)
 
 TEST(Btree, EmptyTest)
 {
-    SimdTTM::detail::btree<int32_t, 16> btree;
+    SimdTTM::detail::btree<int32_t, 32> btree;
     {
     std::cout << "Inserting -------------------------------------------------------------------\n"
               << "-----------------------------------------------------------------------------" << std::endl;
@@ -175,7 +175,7 @@ TYPED_TEST(ValueTypesTest, RandomTest)
     srand( 1 );
     std::generate_n( std::back_inserter(randData), 0x4000, &rand );
 
-    SimdTTM::detail::btree<value_type, 16> btree;
+    SimdTTM::detail::btree<value_type, 32> btree;
 
     for( value_type val : randData )
         btree.insert( val );
@@ -183,7 +183,7 @@ TYPED_TEST(ValueTypesTest, RandomTest)
 
 //TEST(BtreeRow, EmptyTest)
 //{
-//    SimdTTM::detail::btree_row<int32_t, 16> row;
+//    SimdTTM::detail::btree_row<int32_t, 32> row;
 //
 //    {
 //    std::cout << "Inserting -------------------------------------------------------------------\n"

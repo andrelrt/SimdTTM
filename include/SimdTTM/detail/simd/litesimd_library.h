@@ -22,20 +22,51 @@
 
 #pragma once
 
+#include <litesimd/types.h>
+#include <litesimd/compare.h>
+#include <litesimd/helpers/iostream.h>
 
-#if defined(STTM_VC_ENABLED)
+#include <boost/align/aligned_allocator.hpp>
 
-#include "vc_library.h"
+namespace SimdTTM {
+namespace detail {
+namespace simd {
 
-#elif defined(STTM_LITESIMD_ENABLED)
+template< typename Val_T >
+using simd_type = litesimd::simd_type< Val_T >;
 
-#include "litesimd_library.h"
+template< typename Val_T >
+using allocator = boost::alignment::aligned_allocator< Val_T >;
 
-#elif defined(STTM_SSE_ENABLED)
+template< typename Val_T >
+static constexpr size_t simd_size()
+{
+    return simd_type< Val_T >::size();
+}
 
-#include "sse_intrinsics.h"
+static inline void prefetch( const void* addr )
+{
+    _mm_prefetch( addr, _MM_HINT_T0 );
+}
 
-#else
-#error No SIMD target defined
-#endif
+template< typename Val_T >
+static inline simd_type< Val_T > from_value( Val_T val )
+{
+    return simd_type< Val_T >( val );
+}
 
+template< typename Vector_T, typename Val_T >
+static inline int greater_than( const Vector_T vec, const Val_T val )
+{
+    return litesimd::greater_first_index( vec, val );
+}
+
+template< typename Val_T >
+static inline simd_type< Val_T > load_unaligned( const void* p )
+{
+    simd_type< Val_T > ret;
+    ret.load_unaligned( p );
+    return ret;
+}
+
+}}} // namespace SimdTTM::detail::simd
