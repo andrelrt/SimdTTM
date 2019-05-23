@@ -58,7 +58,7 @@ static inline simd_type< Val_T > from_value( Val_T val )
 template< typename Vector_T, typename Val_T >
 static inline int greater_than( const Vector_T vec, const Val_T val )
 {
-    return litesimd::greater_first_index( vec, val );
+    return 1 + litesimd::greater_first_index( vec, val );
 }
 
 template< typename Val_T >
