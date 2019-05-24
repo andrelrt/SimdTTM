@@ -87,12 +87,14 @@ public:
 
     inline void prefetch( size_t step, iterator_type beg )
     {
+#if defined(USE_MEMORY_PREFETCH)
         auto it = beg;
         for( size_t i = 0; i < array_size; ++i )
         {
             std::advance( it, step );
             simd::prefetch( reinterpret_cast<const void*>( &(*it) ) );
         }
+#endif // defined(USE_MEMORY_PREFETCH)
     }
 
     inline simd_type get_compare( size_t step, iterator_type beg )

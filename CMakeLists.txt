@@ -26,23 +26,20 @@ else()
     set(SIMD_DEFINE STTM_SSE_ENABLED)
 endif()
 
-if(MSVC)
-    add_compile_options(
-        "/W4"
-        "$<$<CONFIG:RELEASE>:/O2>"
-        "$<$<CONFIG:RELEASE>:/Oi>"
-        "/MD$<$<CONFIG:Debug>:d>"
-        "/D${SIMD_DEFINE}"
-    )
-else()
-    add_compile_options(
+option(STTM_USE_PREFETCH_OPTIMIZATION "Use memory prefetch optimization" ON)
+
+set(COMPILE_FLAGS
         "-Wall"
         "-march=native"
         "-mtune=native"
         "-fno-strict-aliasing"
         "-D${SIMD_DEFINE}"
-    )
+)
+
+if(STTM_USE_PREFETCH_OPTIMIZATION)
+    list(APPEND COMPILE_FLAGS "-DUSE_MEMORY_PREFETCH")
 endif()
+add_compile_options(${COMPILE_FLAGS})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

@@ -294,7 +294,7 @@ int main(int argc, char* /*argv*/[])
     benchLoop< int8_t, int16_t, int32_t, int64_t, float, double > benchmark;
 #endif
 
-    benchmark( verbose, runSize, loop, verbose? 1: 5 );
+    benchmark( verbose, runSize, loop, verbose? 1: 100 );
 
     return 0;
 }
