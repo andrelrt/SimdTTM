@@ -77,7 +77,7 @@ private:
     const container_type& ref_;
 };
 
-template< class Cont_T >
+template< class Cont_T, size_t array_size >
 struct SimdTTMPointerLowerBound
 {
 	using container_type = Cont_T;
@@ -90,8 +90,8 @@ struct SimdTTMPointerLowerBound
 
     const_iterator find( const value_type& key )
     {
-        auto first = SimdTTM::lower_bound< const value_type*,
-                                  value_type >( ref_.data(), ref_.data()+ref_.size(), key );
+        auto first = SimdTTM::lower_bound< const value_type*, value_type, array_size >
+                        ( ref_.data(), ref_.data()+ref_.size(), key );
 
         auto it = ref_.begin();
         std::advance( it, first - ref_.data() );
@@ -190,7 +190,7 @@ public:
                         ( ss.str(), runSize, inLoop, verbose );
 
         std::vector< std::pair< size_t, uint64_t > > vec
-              = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
+            ;//  = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
 
         vec.emplace_back( sz, ret );
         return vec;
@@ -198,17 +198,17 @@ public:
 };
 
 template< typename NUM_T >
-class benchSizes< NUM_T, 1 >
+class benchSizes< NUM_T, 2 >
 {
 public:
     std::vector< std::pair< size_t, uint64_t > >
     operator()( size_t runSize, size_t inLoop, bool verbose )
     {
         uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBound< avector< NUM_T >, 1 > >
-                        ( "SimdTTM::lower_bound (1)", runSize, inLoop, verbose );
+                        ( "SimdTTM::lower_bound (2)", runSize, inLoop, verbose );
 
         std::vector< std::pair< size_t, uint64_t > > vec;
-        vec.emplace_back( 1, ret );
+        vec.emplace_back( 2, ret );
         return vec;
     }
 };
@@ -246,7 +246,8 @@ public:
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-            uint64_t base = bench< avector< NUM_T >, StdLowerBound< avector< NUM_T > > >( "std::lower_bound ......", runSize, inloop, verbose );
+//            uint64_t base = bench< avector< NUM_T >, StdLowerBound< avector< NUM_T > > >( "std::lower_bound ......", runSize, inloop, verbose );
+            bench< avector< NUM_T >, SimdTTMPointerLowerBound< avector< NUM_T >, SimdTTM::detail::simd::simd_size< NUM_T >() > >( "STTM ptr ......", runSize, inloop, verbose );
 
             auto simd_times = benchSizes< NUM_T >()( runSize, inloop, verbose );
 
@@ -294,7 +295,7 @@ int main(int argc, char* /*argv*/[])
     benchLoop< int8_t, int16_t, int32_t, int64_t, float, double > benchmark;
 #endif
 
-    benchmark( verbose, runSize, loop, verbose? 1: 100 );
+    benchmark( verbose, runSize, loop, verbose? 1: 5 );
 
     return 0;
 }
