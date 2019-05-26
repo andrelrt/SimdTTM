@@ -61,8 +61,8 @@ public:
     simd_type operator()( simd_type vec, ForwardIterator it, size_t step )
     {
         auto ret = set_functor< Val_T, NUM_T -1 >()( vec, it, step );
-        //std::advance( it, step * (NUM_T+1) );
-        it += step * (NUM_T+1);
+        std::advance( it, step * (NUM_T+1) );
+        //it += step * (NUM_T+1);
         ret[ NUM_T ] = *it;
         return ret;
     }
@@ -78,8 +78,8 @@ public:
     template< class ForwardIterator >
     simd_type operator()( simd_type vec, ForwardIterator it, size_t step )
     {
-        //std::advance( it, step );
-        it += step;
+        std::advance( it, step );
+        //it += step;
         vec[ 0 ] = *it;
         return vec;
     }
@@ -102,8 +102,8 @@ public:
     inline iterator_type operator[](const size_t idx)
     {
         auto it = beg_;
-        //std::advance( it, idx * step_ );
-        it += idx * step_;
+        std::advance( it, idx * step_ );
+        //it += idx * step_;
         return it;
     }
 
@@ -114,17 +114,22 @@ public:
         auto it = beg;
         for( size_t i = 0; i < array_size; ++i )
         {
-            //std::advance( it, step );
-            it += step;
+            std::advance( it, step );
+            //it += step;
             simd::prefetch( reinterpret_cast<const void*>( &(*it) ) );
         }
 #endif // defined(USE_MEMORY_PREFETCH)
     }
 
-    inline simd_type get_compare( size_t step, iterator_type beg )
+    inline void set( size_t step, iterator_type beg )
     {
         beg_ = beg;
         step_ = step;
+    }
+
+    inline simd_type get_compare( size_t step, iterator_type beg )
+    {
+        set( step, beg );
         auto it = beg;
         simd_type cmp( std::numeric_limits< value_type >::max() );
         return set_functor< value_type, array_size -1 >()( cmp, it, step );
@@ -146,10 +151,92 @@ ForwardIterator small_lower_bound( ForwardIterator beg, size_t size, SIMD_T skey
     size_t i = simd::greater_than( cmp, skey );
     i = std::min<size_t>( i, size-1 );
 
-    //std::advance( beg, i );
-    beg += i;
+//    std::cout << cmp << "," << skey << "," << i << std::endl;
+
+    std::advance( beg, i-1 );
+    //beg += i;
     return beg;
 }
+
+template <class ForwardIterator, class T,
+          size_t array_size = simd::simd_size< typename std::iterator_traits< ForwardIterator >::value_type >(),
+          typename std::enable_if<
+                std::is_arithmetic< typename std::iterator_traits< ForwardIterator >::value_type >
+                   ::value >
+             ::type* = nullptr >
+class lower_bound_functor
+{
+public:
+    using iterator_type = ForwardIterator;
+    using value_type = typename std::iterator_traits< iterator_type >::value_type;
+    using simd_type = simd::simd_type< value_type >;
+    static_assert( array_size <= simd_type::size(), "array_size should be less or equal to simd::size()" );
+
+    lower_bound_functor( iterator_type beg, iterator_type end ) :
+        beg_(beg), end_(end)
+    {
+        simd_filler<ForwardIterator, array_size> filler;
+        size_t step = std::distance( beg, end ) / (array_size + 1);
+        first_ = filler.get_compare( step, beg );
+    }
+
+    iterator_type operator()( const T& key )
+    {
+        auto beg = beg_;
+        auto end = end_;
+        simd_filler<ForwardIterator, array_size> filler;
+
+        size_t size = std::distance( beg, end );
+
+        simd_type skey = simd::from_value( key );
+        if( size < array_size+1 )
+        {
+            // Standard lower_bound on small sizes
+            return std::lower_bound( beg, end, key );
+            //return small_lower_bound< array_size >( beg, size, skey );
+        }
+
+        size_t step = size / (array_size + 1);
+        filler.set( step, beg );
+        simd_type cmp = first_;
+        while( 1 )
+        {
+            step /= (array_size + 1);
+
+            // N-Way search
+            size_t i = simd::greater_than( cmp, skey );
+            i = std::min<size_t>( i, array_size );
+
+            // Recalculate iterators
+            beg = filler[ i ];
+            filler.prefetch( step, beg );
+            size_t dist;
+            //if( __builtin_expect( i != array_size, 1 ) )
+            if( i != array_size )
+            {
+                end = filler[ i + 1 ];
+                dist = std::distance( beg, end );
+            }
+            else
+            {
+                dist = std::distance( beg, end );
+                step = dist / (array_size + 1);
+            }
+            if( __builtin_expect( dist < array_size+1, 0 ) )
+            {
+                // Standard lower_bound on small sizes
+                return std::lower_bound( beg, end, key );
+                //return small_lower_bound< array_size >( beg, dist, skey );
+            }
+            cmp = filler.get_compare( step, beg );
+        }
+    }
+
+private:
+    iterator_type beg_;
+    iterator_type end_;
+    simd_type first_;
+};
 
 template <class ForwardIterator, class T,
           size_t array_size = simd::simd_size< typename std::iterator_traits< ForwardIterator >::value_type >(),
@@ -176,8 +263,8 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
     if( size < array_size+1 )
     {
         // Standard lower_bound on small sizes
-        //return std::lower_bound( beg, end, key );
-        return small_lower_bound< array_size >( beg, size, skey );
+        return std::lower_bound( beg, end, key );
+        //return small_lower_bound< array_size >( beg, size, skey );
     }
 
     while( 1 )
@@ -208,8 +295,8 @@ ForwardIterator lower_bound( ForwardIterator ibeg, ForwardIterator iend, const T
         if( __builtin_expect( dist < array_size+1, 0 ) )
         {
             // Standard lower_bound on small sizes
-            //return std::lower_bound( beg, end, key );
-            return small_lower_bound< array_size >( beg, dist, skey );
+            return std::lower_bound( beg, end, key );
+            //return small_lower_bound< array_size >( beg, dist, skey );
         }
     }
 }

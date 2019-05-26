@@ -102,6 +102,32 @@ private:
     const container_type& ref_;
 };
 
+template< class Cont_T, size_t array_size >
+struct SimdTTMLowerBoundFunctor
+{
+	using container_type = Cont_T;
+    using value_type     = typename container_type::value_type;
+    using const_iterator = typename container_type::const_iterator;
+
+    explicit SimdTTMLowerBoundFunctor( const container_type& ref )
+        : ref_( ref ), lb_( ref.data(), ref.data()+ref.size() )
+    {
+    }
+
+    void build_index(){}
+
+    const_iterator find( const value_type& key )
+    {
+        auto first = lb_( key );
+        auto it = ref_.begin();
+        std::advance( it, first - ref_.data() );
+        return (it!=ref_.end() && !(key<*it)) ? it : ref_.end();
+    }
+private:
+    const container_type& ref_;
+    SimdTTM::detail::lower_bound_functor< const value_type*, value_type, array_size > lb_;
+};
+
 void do_nothing( int32_t );
 
 template< typename TYPE_T > const char* getName() { return ""; }
@@ -246,11 +272,16 @@ public:
         }
         for( size_t i = 0; i < outloop; ++i )
         {
-//            uint64_t base = bench< avector< NUM_T >, StdLowerBound< avector< NUM_T > > >( "std::lower_bound ......", runSize, inloop, verbose );
+            uint64_t base = bench< avector< NUM_T >, StdLowerBound< avector< NUM_T > > >( "std::lower_bound ......", runSize, inloop, verbose );
             bench< avector< NUM_T >, SimdTTMPointerLowerBound< avector< NUM_T >, SimdTTM::detail::simd::simd_size< NUM_T >() > >( "STTM ptr ......", runSize, inloop, verbose );
+            uint64_t funct = bench< avector< NUM_T >, SimdTTMLowerBoundFunctor< avector< NUM_T >, SimdTTM::detail::simd::simd_size< NUM_T >() > >( "STTM func .....", runSize, inloop, verbose );
 
             auto simd_times = benchSizes< NUM_T >()( runSize, inloop, verbose );
 
+            std::cout << std::dec
+                << "\nSimdTTM::lower_bound_func(16), "
+                << getName<NUM_T>() << " Speed up: "
+                << std::fixed << std::setprecision(2) << percent( base, funct ) << "%";
             if( verbose )
             {
                 uint64_t best = std::min_element( simd_times.begin(), simd_times.end(),

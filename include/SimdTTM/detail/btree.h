@@ -38,7 +38,7 @@
 
 #include <SimdTTM/detail/simd/compatibility.h>
 
-#define SIMDTTM_DEBUG 1
+//#define SIMDTTM_DEBUG 1
 
 #ifdef SIMDTTM_DEBUG
 #define DEBUG_CHECK_NODE( a, b, c, d ) debug_check_node( a, b, c, d )
