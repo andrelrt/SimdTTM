@@ -71,6 +71,11 @@ struct SimdTTMLowerBound
         auto first = SimdTTM::lower_bound< const_iterator, value_type, array_size >
                         ( ref_.begin(), ref_.end(), key );
 
+
+//        if( first!=ref_.end() && key<*first )
+//        {
+//            std::cout << "key < *first: " << key << " < " << *first << std::endl;
+//        }
         return (first!=ref_.end() && !(key<*first)) ? first : ref_.end();
     }
 private:
@@ -212,11 +217,11 @@ public:
     {
         std::stringstream ss;
         ss << "SimdTTM::lower_bound (" << sz << ")";
-        uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBound< avector< NUM_T >, sz > >
+        uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBoundFunctor< avector< NUM_T >, sz > >
                         ( ss.str(), runSize, inLoop, verbose );
 
         std::vector< std::pair< size_t, uint64_t > > vec
-            ;//  = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
+             = benchSizes< NUM_T, sz-1 >()( runSize, inLoop, verbose );
 
         vec.emplace_back( sz, ret );
         return vec;
@@ -230,7 +235,7 @@ public:
     std::vector< std::pair< size_t, uint64_t > >
     operator()( size_t runSize, size_t inLoop, bool verbose )
     {
-        uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBound< avector< NUM_T >, 1 > >
+        uint64_t ret = bench< avector< NUM_T >, SimdTTMLowerBoundFunctor< avector< NUM_T >, 1 > >
                         ( "SimdTTM::lower_bound (2)", runSize, inLoop, verbose );
 
         std::vector< std::pair< size_t, uint64_t > > vec;
@@ -326,7 +331,7 @@ int main(int argc, char* /*argv*/[])
     benchLoop< int8_t, int16_t, int32_t, int64_t, float, double > benchmark;
 #endif
 
-    benchmark( verbose, runSize, loop, verbose? 1: 5 );
+    benchmark( verbose, runSize, loop, verbose? 1: 100 );
 
     return 0;
 }
